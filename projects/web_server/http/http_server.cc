@@ -3,6 +3,8 @@
 #include <string>
 #include <utility>
 
+#include "log/logger.h"
+
 namespace {
 
 void SendError(TcpConnection& conn, int status, std::string body) {
@@ -45,6 +47,7 @@ void HttpServer::OnMessage(TcpConnection& conn) {
             return;
         }
         if (result == HttpParser::Result::kError) {
+            LOG_WARN("bad request from fd %d", conn.Fd());
             SendError(conn, 400, "400 Bad Request\n");
             return;
         }
@@ -53,6 +56,7 @@ void HttpServer::OnMessage(TcpConnection& conn) {
         try {
             response = handler_.Handle(request);
         } catch (...) {
+            LOG_ERROR("handler exception on fd %d", conn.Fd());
             SendError(conn, 500, "500 Internal Server Error\n");
             return;
         }

@@ -1,4 +1,5 @@
 #include "http/http_server.h"
+#include "log/logger.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -42,14 +43,28 @@ int main(int argc, char** argv) {
     }
 
     try {
+        Logger::Instance().Start("logs/server.log");
+    } catch (const std::exception& e) {
+        std::cerr << "logger init failed, fallback to stderr: " << e.what()
+                  << std::endl;
+    }
+
+    try {
         HttpServer server(host, port, root, workers, timeout);
         std::cout << "listening on http://" << host << ":" << server.Port()
                   << " root=" << root << " threads=" << workers
                   << " timeout=" << timeout << "s" << std::endl;
+        LOG_INFO("server listening on %s:%u root=%s threads=%zu timeout=%ds",
+                 host.c_str(), static_cast<unsigned>(server.Port()), root.c_str(),
+                 workers, timeout);
         server.Start();
     } catch (const std::exception& e) {
+        LOG_ERROR("server error: %s", e.what());
         std::cerr << "server error: " << e.what() << std::endl;
+        Logger::Instance().Stop();
         return 1;
     }
+
+    Logger::Instance().Stop();
     return 0;
 }

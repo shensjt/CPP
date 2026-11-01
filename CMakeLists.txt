@@ -17,6 +17,13 @@ target_include_directories(net PUBLIC common)
 target_link_libraries(net PUBLIC Threads::Threads)
 target_compile_options(net PRIVATE -Wall -Wextra -Wpedantic)
 
+add_library(log STATIC
+    common/log/async_logger.cc
+)
+target_include_directories(log PUBLIC common)
+target_link_libraries(log PUBLIC Threads::Threads)
+target_compile_options(log PRIVATE -Wall -Wextra -Wpedantic)
+
 add_library(http STATIC
     projects/web_server/http/http_parser.cc
     projects/web_server/http/http_response.cc
@@ -24,7 +31,7 @@ add_library(http STATIC
     projects/web_server/http/http_server.cc
 )
 target_include_directories(http PUBLIC projects/web_server)
-target_link_libraries(http PUBLIC net)
+target_link_libraries(http PUBLIC net log)
 target_compile_options(http PRIVATE -Wall -Wextra -Wpedantic)
 
 add_executable(web_server projects/web_server/main.cpp)
