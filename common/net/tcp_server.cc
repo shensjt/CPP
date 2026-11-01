@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include <cerrno>
+#include <memory>
 #include <stdexcept>
 #include <system_error>
 #include <vector>
@@ -85,7 +86,7 @@ TcpServer::TcpServer(const std::string& ip, uint16_t port) {
 TcpServer::~TcpServer() {
     Stop();
     for (auto& [fd, conn] : connections_) {
-        ::close(fd);
+        conn->Close();
     }
     connections_.clear();
     if (listen_fd_ >= 0) {
@@ -108,10 +109,20 @@ void TcpServer::Start() {
                 continue;
             }
 
-            if (ev & EPOLLIN) {
-                HandleRead(fd);
+            auto it = connections_.find(fd);
+            if (it == connections_.end()) {
+                continue;
             }
-            if (connections_.find(fd) == connections_.end()) {
+            TcpConnection& conn = *it->second;
+
+            if (ev & EPOLLIN) {
+                if (!conn.HandleRead()) {
+                    CloseConnection(fd);
+                    continue;
+                }
+            }
+            if (!conn.Connected()) {
+                CloseConnection(fd);
                 continue;
             }
             if (ev & (EPOLLERR | EPOLLHUP)) {
@@ -119,7 +130,9 @@ void TcpServer::Start() {
                 continue;
             }
             if (ev & EPOLLOUT) {
-                Flush(fd);
+                if (!conn.HandleWrite()) {
+                    CloseConnection(fd);
+                }
             }
         }
     }
@@ -143,63 +156,30 @@ void TcpServer::HandleAccept() {
         try {
             SetNonBlocking(fd);
             SetCloexec(fd);
-            connections_.emplace(fd, Connection{fd, {}});
-            connection_count_.fetch_add(1);
-            epoll_.Add(fd, EPOLLIN);
         } catch (...) {
             ::close(fd);
             throw;
         }
-    }
-}
 
-void TcpServer::HandleRead(int fd) {
-    auto it = connections_.find(fd);
-    if (it == connections_.end()) return;
-
-    char buf[64 * 1024];
-    while (true) {
-        const ssize_t n = ::recv(fd, buf, sizeof(buf), 0);
-        if (n > 0) {
-            it->second.out.append(buf, static_cast<std::size_t>(n));
-            continue;
+        std::unique_ptr<TcpConnection> conn;
+        try {
+            conn = std::make_unique<TcpConnection>(&epoll_, fd);
+        } catch (...) {
+            ::close(fd);
+            throw;
         }
-        if (n == 0) {
-            CloseConnection(fd);
-            return;
+        conn->SetMessageCallback([](TcpConnection& c) {
+            c.Send(c.ReadBuffer().RetrieveAllAsString());
+        });
+
+        connections_.emplace(fd, std::move(conn));
+        try {
+            epoll_.Add(fd, EPOLLIN);
+        } catch (...) {
+            connections_.erase(fd);
+            throw;
         }
-        if (errno == EINTR) continue;
-        if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-        CloseConnection(fd);
-        return;
-    }
-
-    Flush(fd);
-}
-
-void TcpServer::Flush(int fd) {
-    auto it = connections_.find(fd);
-    if (it == connections_.end()) return;
-
-    std::string& out = it->second.out;
-    std::size_t sent = 0;
-    while (sent < out.size()) {
-        const ssize_t n = ::send(fd, out.data() + sent, out.size() - sent, MSG_NOSIGNAL);
-        if (n > 0) {
-            sent += static_cast<std::size_t>(n);
-            continue;
-        }
-        if (n < 0 && errno == EINTR) continue;
-        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) break;
-        CloseConnection(fd);
-        return;
-    }
-
-    out.erase(0, sent);
-    if (out.empty()) {
-        epoll_.Mod(fd, EPOLLIN);
-    } else {
-        epoll_.Mod(fd, EPOLLIN | EPOLLOUT);
+        connection_count_.fetch_add(1);
     }
 }
 
@@ -207,12 +187,7 @@ void TcpServer::CloseConnection(int fd) {
     auto it = connections_.find(fd);
     if (it == connections_.end()) return;
 
-    try {
-        epoll_.Del(fd);
-    } catch (...) {
-        // fd 已经不可用时忽略 Del 失败，继续关闭
-    }
-    ::close(fd);
+    it->second->Close();
     connections_.erase(it);
     connection_count_.fetch_sub(1);
 }

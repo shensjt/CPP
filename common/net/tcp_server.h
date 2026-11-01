@@ -3,10 +3,12 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <unordered_map>
 
 #include "net/epoll.h"
+#include "net/tcp_connection.h"
 
 // 最小 TCP Echo 服务器：listen + epoll 事件循环。
 // Start() 阻塞运行；Stop() 从其他线程置位，最多一个 Wait 超时后退出。
@@ -26,14 +28,7 @@ public:
     std::size_t ConnectionCount() const { return connection_count_.load(); }
 
 private:
-    struct Connection {
-        int fd;
-        std::string out;  // 还没发完的数据
-    };
-
     void HandleAccept();
-    void HandleRead(int fd);
-    void Flush(int fd);
     void CloseConnection(int fd);
 
     int listen_fd_ = -1;
@@ -41,5 +36,5 @@ private:
     Epoll epoll_;
     std::atomic<bool> running_{false};
     std::atomic<std::size_t> connection_count_{0};
-    std::unordered_map<int, Connection> connections_;
+    std::unordered_map<int, std::unique_ptr<TcpConnection>> connections_;
 };
