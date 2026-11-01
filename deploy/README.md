@@ -90,7 +90,7 @@ ssh webserver@your-server-ip '
 
 - 大陆服务器：域名需要 ICP 备案；备案通常要求服务器购买 3 个月以上，管局审核 1–3 周。备案期间不要对外解析域名。
 - 香港/海外服务器：不需要 ICP 备案，HTTPS 证书正常申请。
-- 校招会临时演示可以用 Cloudflare Tunnel：
+- 临时演示可以用 Cloudflare Tunnel：
 
 ```bash
 cloudflared tunnel --url http://127.0.0.1:8080

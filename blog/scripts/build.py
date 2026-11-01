@@ -21,10 +21,10 @@ ROOT = BLOG.parent
 CATEGORY_NAMES = {
     "devlog": "开发日志",
     "deepdive": "技术深潜",
-    "career": "校招复盘",
+    "notes": "随笔",
     "release": "版本发布",
 }
-CATEGORY_ORDER = ["devlog", "deepdive", "career", "release"]
+CATEGORY_ORDER = ["devlog", "deepdive", "notes", "release"]
 
 
 def load_config():
@@ -98,7 +98,7 @@ def render_code(lang, code):
         lexer = get_lexer_by_name(lang) if lang else TextLexer()
     except ClassNotFound:
         lexer = TextLexer()
-    formatter = HtmlFormatter(cssclass="codehilite", style="github-dark")
+    formatter = HtmlFormatter(cssclass="codehilite", style="friendly")
     return highlight(code.rstrip("\n"), lexer, formatter)
 
 
@@ -195,21 +195,33 @@ def page(config, title, content):
     )
 
 
-def post_card(post):
+def post_card(post, featured=False):
     name = CATEGORY_NAMES.get(post["category"], post["category"])
-    return f"""<article class="post-card">
-  <div class="post-meta">{html.escape(post["date"])} · {html.escape(name)}</div>
-  <h2><a href="/posts/{post["slug"]}.html">{html.escape(post["title"])}</a></h2>
-  <p>{html.escape(post["summary"])}</p>
+    css_class = "featured-entry" if featured else "entry"
+    read = (
+        f'<a class="read" href="/posts/{post["slug"]}.html">阅读全文 →</a>'
+        if featured
+        else ""
+    )
+    return f"""<article class="{css_class}">
+  <p class="entry-meta">{html.escape(post["date"])} · {html.escape(name)}</p>
+  <div>
+    <h2><a href="/posts/{post["slug"]}.html">{html.escape(post["title"])}</a></h2>
+    <p class="entry-summary">{html.escape(post["summary"])}</p>
+    {read}
+  </div>
 </article>"""
 
 
 def render_post(config, post, newer, older):
     name = CATEGORY_NAMES.get(post["category"], post["category"])
-    tags = " · ".join(html.escape(tag) for tag in post["tags"])
-    meta = f"{post['date']} · {name} · 约 {reading_minutes(post['body'])} 分钟"
+    tags = " / ".join(html.escape(tag) for tag in post["tags"])
+    kicker = (
+        f"{html.escape(post['date'])} · {html.escape(name)} · "
+        f"约 {reading_minutes(post['body'])} 分钟"
+    )
     if tags:
-        meta += f" · {tags}"
+        kicker += f" · {tags}"
 
     prev_next = []
     if newer:
@@ -224,7 +236,8 @@ def render_post(config, post, newer, older):
     content = template(
         "post.html",
         title=html.escape(post["title"]),
-        meta=meta,
+        kicker=kicker,
+        summary=html.escape(post["summary"]),
         body=markdown_to_html(post["body"]),
         prev_next="".join(prev_next) if prev_next else "<span></span>",
     )
@@ -243,10 +256,15 @@ def render_list(config, category, posts):
 
 
 def render_index(config, posts):
-    cards = "\n".join(post_card(post) for post in posts[:5])
+    featured = (
+        post_card(posts[0], featured=True)
+        if posts
+        else '<p class="empty">还没有文章。</p>'
+    )
+    rest = "\n".join(post_card(post) for post in posts[1:5])
     categories = "\n".join(
-        f'<a class="category-card" href="/{category}.html">'
-        f"<h3>{CATEGORY_NAMES[category]}</h3><p>{count} 篇</p></a>"
+        f'<a class="section-link" href="/{category}.html">'
+        f"<span>{CATEGORY_NAMES[category]}</span><em>{count} 篇</em></a>"
         for category, count in (
             (category, sum(1 for post in posts if post["category"] == category))
             for category in CATEGORY_ORDER
@@ -255,7 +273,8 @@ def render_index(config, posts):
     content = template(
         "index.html",
         description=html.escape(config["site"]["description"]),
-        post_list=cards or '<p class="empty">还没有文章。</p>',
+        featured=featured,
+        post_list=rest or '<p class="empty">暂无更多文章。</p>',
         categories=categories,
     )
     return page(config, "首页", content)
@@ -298,7 +317,8 @@ def build(out_dir, content_dir):
         content = template(
             "post.html",
             title=html.escape(about["title"]),
-            meta="",
+            kicker=html.escape(about["date"]),
+            summary=html.escape(about.get("summary", "")),
             body=markdown_to_html(about["body"]),
             prev_next="<span></span>",
         )
@@ -306,9 +326,16 @@ def build(out_dir, content_dir):
             page(config, about["title"], content), encoding="utf-8"
         )
 
-    pygments_css = HtmlFormatter(style="github-dark").get_style_defs(".codehilite")
+    pygments_css = HtmlFormatter(style="friendly").get_style_defs(".codehilite")
     css = (BLOG / "templates" / "css" / "style.css").read_text(encoding="utf-8")
-    (out_dir / "css" / "style.css").write_text(css + "\n" + pygments_css, encoding="utf-8")
+    # Pygments 自带背景色，最后覆盖成纸张色
+    css += (
+        "\n"
+        + pygments_css
+        + "\n.content .codehilite { background: #efe9dc; }\n"
+        + ".content .codehilite pre { background: transparent; }\n"
+    )
+    (out_dir / "css" / "style.css").write_text(css, encoding="utf-8")
 
     favicon = BLOG / "templates" / "favicon.svg"
     if favicon.exists():

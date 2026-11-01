@@ -9,14 +9,17 @@
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-  <header class="site">
-    <div class="wrap">
-      <a class="logo" href="/">{{site_title}}</a>
+  <header class="masthead">
+    <div class="wrap masthead-inner">
+      <div class="masthead-title">
+        <a class="wordmark" href="/">{{site_title}}</a>
+        <p class="tagline">{{description}}</p>
+      </div>
       <nav>
         <a href="/">首页</a>
         <a href="/devlog.html">开发日志</a>
         <a href="/deepdive.html">技术深潜</a>
-        <a href="/career.html">校招复盘</a>
+        <a href="/notes.html">随笔</a>
         <a href="/about.html">关于</a>
       </nav>
     </div>
@@ -26,8 +29,8 @@
 {{content}}
   </main>
 
-  <footer class="site-footer">
-    <div class="wrap">
+  <footer class="colophon">
+    <div class="wrap colophon-inner">
       <span>© {{year}} {{author}}</span>
       <span><a href="{{github}}">GitHub</a> · Powered by SJTWebServer (C++)</span>
     </div>

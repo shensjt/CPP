@@ -9,7 +9,7 @@ docs/blog/
 ├── posts/
 │   ├── devlog/
 │   ├── deepdive/
-│   ├── career/
+│   ├── notes/
 │   └── release/
 └── about.md        # 可选
 ```
@@ -71,7 +71,7 @@ cp blog/post-template.md docs/blog/posts/devlog/2026-11-02-first-post.md
 ---
 title: "文章标题"
 date: "2026-11-02"
-category: "devlog"        # devlog / deepdive / career / release
+category: "devlog"        # devlog / deepdive / notes / release
 tags: ["C++", "epoll"]
 summary: "列表页显示的一句话"
 draft: false

@@ -42,33 +42,53 @@ TcpServer
 
 当前可演示快照：`v0.1-demo`。仓库只保存源码、模板、测试、部署配置和一篇演示文章；`www/` 是构建产物，不入库。
 
-## 快速开始
+## 环境要求
 
-首次运行先生成静态站（需要 Python 3、PyYAML、Pygments）：
+- Linux / macOS，C++17 编译器，CMake ≥ 3.16
+- Python 3 + PyYAML + Pygments（生成博客）
+
+Ubuntu/Debian：
 
 ```bash
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r blog/requirements.txt
+sudo apt install build-essential cmake python3-yaml python3-pygments
+```
 
-# 如果环境已装 PyYAML/Pygments，可以跳过 venv，直接从下一行开始
+macOS：
+
+```bash
+brew install cmake python3
+pip3 install -r blog/requirements.txt
+```
+
+## 快速开始
+
+```bash
+git clone https://github.com/shensjt/CPP.git
+cd CPP
+
+# 1. 生成演示站点
 python3 blog/scripts/build.py
+
+# 2. 编译服务器
 cmake -S . -B build/server -DCMAKE_BUILD_TYPE=Release
 cmake --build build/server -j
+
+# 3. 运行
 ./build/server/web_server --host 127.0.0.1 --port 8080 \
   --root projects/web_server/www --threads 4 --timeout 60
 ```
 
-或者用 Makefile：
+打开 `http://127.0.0.1:8080/`，首页会显示仓库自带的示例文章。
+
+也可以：
 
 ```bash
-make deps    # 需要 pip
-make blog    # 用仓库里的演示文章
+make blog
 make server
 make run
 ```
 
-你自己的文章不放进公开仓库，放在本地 `docs/blog/`（已 gitignore），构建时指定内容目录：
+自己的文章不放进公开仓库，放在本地 `docs/blog/`（已 gitignore），构建时指定内容目录：
 
 ```bash
 python3 blog/scripts/build.py --content docs/blog
@@ -81,7 +101,8 @@ make blog-local
 ## 博客构建链路
 
 ```text
-blog/posts/**/*.md          Markdown + YAML front matter
+blog/demo/posts/**/*.md     仓库演示内容
+docs/blog/posts/**/*.md     本地真实内容（gitignore）
         │
         │ blog/scripts/build.py
         │   解析 front matter → Markdown 转 HTML
@@ -179,7 +200,7 @@ deploy/            Caddyfile、systemd、部署脚本
 - TLS 不在 C++ 内实现，交给 Caddy
 - 没有限流、连接数上限和认证
 - KV 存储（跳表 + AOF）还在规划中
-- 博客目前只有测试占位内容
+- 博客仓库只带一篇演示文章，真实内容在本地 `docs/blog/` 维护
 
 ## 部署
 

@@ -1,5 +1,5 @@
 site:
   title: SJTWebServer
-  author: shen
+  author: Your Name
   description: 从零实现 C++ 高并发 Web 服务器，记录线程池、epoll、HTTP 与部署的全过程。
   github: https://github.com/shensjt/CPP
