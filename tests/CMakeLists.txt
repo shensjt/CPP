@@ -75,3 +75,8 @@ add_component_test(threadpool_tests
 add_component_test(memory_pool_tests
     test_memory_pool.cc
 )
+
+add_component_test(net_tests
+    test_epoll.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/net/epoll.cc
+)
