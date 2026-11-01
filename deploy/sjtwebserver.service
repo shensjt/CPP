@@ -1,0 +1,18 @@
+[Unit]
+Description=SJTWebServer
+After=network.target
+
+[Service]
+Type=simple
+User=webserver
+Group=webserver
+WorkingDirectory=/opt/sjtwebserver
+ExecStart=/opt/sjtwebserver/bin/web_server --host 127.0.0.1 --port 8080 --root /opt/sjtwebserver/www --threads 4 --timeout 60
+Restart=always
+RestartSec=3
+LimitNOFILE=65535
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
