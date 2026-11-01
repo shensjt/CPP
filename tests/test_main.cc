@@ -1,4 +1,7 @@
-// 测试入口：运行 test_blocking_queue.cc / test_thread_pool.cc 中注册的用例。
+// 测试入口：运行当前可执行文件链接进来的测试文件。
+// 每个组件一个可执行文件：
+//   ./threadpool_tests    BlockingQueue + ThreadPool
+//   ./memory_pool_tests   MemoryPool
 //
 // 可选参数：名称过滤，例如 ./threadpool_tests BlockingQueue
 //
