@@ -89,6 +89,11 @@ add_component_test(net_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/net/buffer.cc
 )
 
+add_component_test(log_tests
+    test_async_logger.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/log/async_logger.cc
+)
+
 add_component_test(web_server_tests
     test_http_parser.cc
     test_http_response.cc
@@ -102,4 +107,5 @@ add_component_test(web_server_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/net/epoll.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/net/tcp_connection.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/net/tcp_server.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/log/async_logger.cc
 )
