@@ -39,7 +39,9 @@ if [ ! -f "${WWW}/index.html" ]; then
 fi
 
 if ss -lntn 2>/dev/null | grep -qE ":${PORT}([[:space:]]|$)"; then
-  echo "端口 ${PORT} 被占用，先停掉手动运行的 web_server" >&2
+  echo "端口 ${PORT} 被占用。" >&2
+  echo "如果服务已经在跑：sudo bash deploy/stop.sh" >&2
+  echo "如果是手动运行的 web_server：回原终端 Ctrl+C 或 kill 掉。" >&2
   exit 1
 fi
 

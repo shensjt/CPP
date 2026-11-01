@@ -54,6 +54,20 @@ sudo bash deploy/setup.sh
 sudo HOST=0.0.0.0 PORT=8080 THREADS=4 TIMEOUT=60 bash deploy/setup.sh
 ```
 
+### 服务管理
+
+```bash
+sudo bash deploy/stop.sh      # 停止，不删除 unit 和文件
+sudo bash deploy/restart.sh   # 重启并检查 127.0.0.1:8080
+sudo bash deploy/status.sh    # 状态、监听端口、本地请求、最近日志
+```
+
+`stop.sh` 只停止服务，不会禁用开机自启；下次重启服务器仍会自动起来。要彻底取消自启：
+
+```bash
+sudo systemctl disable sjtwebserver
+```
+
 也可以手动安装：
 
 ```bash

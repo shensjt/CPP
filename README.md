@@ -204,7 +204,14 @@ deploy/            Caddyfile、systemd、部署脚本
 
 ## 部署
 
-见 [deploy/README.md](deploy/README.md)。
+```bash
+sudo bash deploy/setup.sh     # 安装/更新 unit 并启动
+sudo bash deploy/stop.sh      # 停止服务
+sudo bash deploy/restart.sh   # 重启并做本地健康检查
+sudo bash deploy/status.sh    # 状态、端口、请求、最近日志
+```
+
+详见 [deploy/README.md](deploy/README.md)。
 
 ## 链接
 
