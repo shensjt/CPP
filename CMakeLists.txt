@@ -1,0 +1,32 @@
+cmake_minimum_required(VERSION 3.16)
+project(sjt_webserver LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+find_package(Threads REQUIRED)
+
+add_library(net STATIC
+    common/net/epoll.cc
+    common/net/buffer.cc
+    common/net/tcp_connection.cc
+    common/net/tcp_server.cc
+)
+target_include_directories(net PUBLIC common)
+target_link_libraries(net PUBLIC Threads::Threads)
+target_compile_options(net PRIVATE -Wall -Wextra -Wpedantic)
+
+add_library(http STATIC
+    projects/web_server/http/http_parser.cc
+    projects/web_server/http/http_response.cc
+    projects/web_server/http/static_file_handler.cc
+    projects/web_server/http/http_server.cc
+)
+target_include_directories(http PUBLIC projects/web_server)
+target_link_libraries(http PUBLIC net)
+target_compile_options(http PRIVATE -Wall -Wextra -Wpedantic)
+
+add_executable(web_server projects/web_server/main.cpp)
+target_link_libraries(web_server PRIVATE http)
+target_compile_options(web_server PRIVATE -Wall -Wextra -Wpedantic)

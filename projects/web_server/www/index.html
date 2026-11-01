@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SJTWebServer</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="site">
+    <div class="wrap">
+      <a class="logo" href="/">SJTWebServer</a>
+      <nav>
+        <a href="/">首页</a>
+        <a href="https://github.com/shensjt/CPP">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <p class="eyebrow">C++11 · epoll · ThreadPool</p>
+      <h1>从零写一个高并发 Web 服务器</h1>
+      <p class="lead">
+        这是运行在自研 C++ 服务器上的站点。静态文件由 C++ 服务直接发送，
+        Caddy 负责 HTTPS。
+      </p>
+    </section>
+
+    <section class="cards">
+      <article>
+        <h2>线程池</h2>
+        <p>生产者消费者队列，固定 worker，EPOLLONESHOT 分发。</p>
+      </article>
+      <article>
+        <h2>事件循环</h2>
+        <p>epoll LT + 非阻塞 IO，readv 读缓冲，EPOLLOUT 续写。</p>
+      </article>
+      <article>
+        <h2>HTTP</h2>
+        <p>请求行 / Headers / Body 状态机，keep-alive 与流水线。</p>
+      </article>
+    </section>
+
+    <p class="muted">Powered by SJTWebServer (C++)</p>
+  </main>
+</body>
+</html>

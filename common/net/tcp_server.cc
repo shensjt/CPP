@@ -10,6 +10,7 @@
 #include <memory>
 #include <stdexcept>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -128,6 +129,14 @@ void TcpServer::Stop() {
     running_ = false;
 }
 
+void TcpServer::SetMessageCallback(MessageCallback cb) {
+    message_callback_ = std::move(cb);
+}
+
+void TcpServer::SetCloseCallback(CloseCallback cb) {
+    close_callback_ = std::move(cb);
+}
+
 void TcpServer::HandleAccept() {
     while (true) {
         sockaddr_in addr{};
@@ -155,9 +164,13 @@ void TcpServer::HandleAccept() {
             throw;
         }
         conn->SetOneShot(use_pool_);
-        conn->SetMessageCallback([](TcpConnection& c) {
-            c.Send(c.ReadBuffer().RetrieveAllAsString());
-        });
+        if (message_callback_) {
+            conn->SetMessageCallback(message_callback_);
+        } else {
+            conn->SetMessageCallback([](TcpConnection& c) {
+                c.Send(c.ReadBuffer().RetrieveAllAsString());
+            });
+        }
 
         {
             std::lock_guard<std::mutex> lock(connections_mutex_);
@@ -257,4 +270,8 @@ void TcpServer::CloseConnection(int fd) {
         conn->Close();
     }
     connection_count_.fetch_sub(1);
+
+    if (close_callback_) {
+        close_callback_(fd);
+    }
 }

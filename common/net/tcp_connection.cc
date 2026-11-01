@@ -98,6 +98,17 @@ void TcpConnection::Flush() {
         Close();
         return;
     }
+
+    if (connected_ && close_after_write_ && write_buffer_.ReadableBytes() == 0) {
+        Close();
+    }
+}
+
+void TcpConnection::CloseAfterWrite() {
+    close_after_write_ = true;
+    if (connected_ && write_buffer_.ReadableBytes() == 0) {
+        Close();
+    }
 }
 
 void TcpConnection::UpdateInterest() {

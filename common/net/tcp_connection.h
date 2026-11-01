@@ -30,6 +30,7 @@ public:
     bool HandleRead();
     bool HandleWrite();
     void Rearm();
+    void CloseAfterWrite();
     void Close();
 
 private:
@@ -43,4 +44,5 @@ private:
     Buffer write_buffer_;
     std::function<void(TcpConnection&)> on_message_;
     bool one_shot_ = false;
+    bool close_after_write_ = false;
 };

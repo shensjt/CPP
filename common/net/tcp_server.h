@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -27,6 +28,12 @@ public:
     void Start();
     void Stop();
 
+    // 在 Start() 之前设置；不设置时默认 Echo。
+    using MessageCallback = std::function<void(TcpConnection&)>;
+    using CloseCallback = std::function<void(int)>;
+    void SetMessageCallback(MessageCallback cb);
+    void SetCloseCallback(CloseCallback cb);
+
     uint16_t Port() const { return port_; }
     std::size_t ConnectionCount() const { return connection_count_.load(); }
 
@@ -46,4 +53,6 @@ private:
     std::atomic<std::size_t> connection_count_{0};
     std::mutex connections_mutex_;
     std::unordered_map<int, std::shared_ptr<TcpConnection>> connections_;
+    MessageCallback message_callback_;
+    CloseCallback close_callback_;
 };
