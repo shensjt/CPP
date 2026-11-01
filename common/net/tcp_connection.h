@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+#include <cstdint>
 #include <functional>
 #include <string>
 
@@ -33,6 +35,15 @@ public:
     void CloseAfterWrite();
     void Close();
 
+    void Touch();
+    void SetInFlight(bool in_flight) {
+        in_flight_.store(in_flight, std::memory_order_relaxed);
+    }
+    bool InFlight() const {
+        return in_flight_.load(std::memory_order_relaxed);
+    }
+    std::int64_t IdleForMs(std::int64_t now_ms) const;
+
 private:
     void Flush();
     void UpdateInterest();
@@ -45,4 +56,6 @@ private:
     std::function<void(TcpConnection&)> on_message_;
     bool one_shot_ = false;
     bool close_after_write_ = false;
+    std::atomic<std::int64_t> last_active_ms_{0};
+    std::atomic<bool> in_flight_{false};
 };

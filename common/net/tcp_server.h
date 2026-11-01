@@ -19,7 +19,8 @@
 // 约定：Stop() 之后先 join Start() 所在线程，再析构。
 class TcpServer {
 public:
-    TcpServer(const std::string& ip, uint16_t port, std::size_t worker_threads = 0);
+    TcpServer(const std::string& ip, uint16_t port, std::size_t worker_threads = 0,
+              int idle_timeout_seconds = 60);
     ~TcpServer();
 
     TcpServer(const TcpServer&) = delete;
@@ -42,6 +43,7 @@ private:
     void HandleEvents(int fd, std::uint32_t events);
     void Dispatch(int fd, std::uint32_t events);
     void CloseConnection(int fd);
+    void SweepIdle();
     std::shared_ptr<TcpConnection> FindConnection(int fd);
 
     int listen_fd_ = -1;
@@ -49,6 +51,7 @@ private:
     Epoll epoll_;
     const bool use_pool_;
     std::unique_ptr<ThreadPool> pool_;
+    int idle_timeout_seconds_ = 60;
     std::atomic<bool> running_{false};
     std::atomic<std::size_t> connection_count_{0};
     std::mutex connections_mutex_;

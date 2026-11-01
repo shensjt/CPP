@@ -1,12 +1,19 @@
 #include "net/tcp_connection.h"
 
 #include <cerrno>
+#include <chrono>
 #include <fcntl.h>
 #include <system_error>
 #include <sys/socket.h>
 #include <unistd.h>
 
 namespace {
+
+std::int64_t NowMs() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
 
 void SetNonBlocking(int fd) {
     const int flags = ::fcntl(fd, F_GETFL, 0);
@@ -21,8 +28,17 @@ void SetNonBlocking(int fd) {
 }  // namespace
 
 TcpConnection::TcpConnection(Epoll* epoll, int fd)
-    : epoll_(epoll), fd_(fd), connected_(true) {
+    : epoll_(epoll), fd_(fd), connected_(true), last_active_ms_(NowMs()) {
     SetNonBlocking(fd_);
+}
+
+void TcpConnection::Touch() {
+    last_active_ms_.store(NowMs(), std::memory_order_relaxed);
+}
+
+std::int64_t TcpConnection::IdleForMs(std::int64_t now_ms) const {
+    const std::int64_t last = last_active_ms_.load(std::memory_order_relaxed);
+    return now_ms > last ? now_ms - last : 0;
 }
 
 TcpConnection::~TcpConnection() {
@@ -36,6 +52,7 @@ void TcpConnection::SetMessageCallback(std::function<void(TcpConnection&)> cb) {
 void TcpConnection::Send(const std::string& data) {
     if (!connected_) return;
 
+    Touch();
     write_buffer_.Append(data);
     Flush();
     if (!one_shot_) {
@@ -46,6 +63,7 @@ void TcpConnection::Send(const std::string& data) {
 bool TcpConnection::HandleRead() {
     if (!connected_) return false;
 
+    Touch();
     while (true) {
         int saved_errno = 0;
         const ssize_t n = read_buffer_.ReadFd(fd_, &saved_errno);
@@ -71,6 +89,7 @@ bool TcpConnection::HandleRead() {
 bool TcpConnection::HandleWrite() {
     if (!connected_) return false;
 
+    Touch();
     Flush();
     if (!one_shot_) {
         UpdateInterest();

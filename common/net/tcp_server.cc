@@ -7,6 +7,8 @@
 #include <unistd.h>
 
 #include <cerrno>
+#include <chrono>
+#include <cstdint>
 #include <memory>
 #include <stdexcept>
 #include <system_error>
@@ -73,8 +75,10 @@ int CreateListenSocket(const std::string& ip, uint16_t port, uint16_t* bound_por
 
 }  // namespace
 
-TcpServer::TcpServer(const std::string& ip, uint16_t port, std::size_t worker_threads)
-    : use_pool_(worker_threads > 0) {
+TcpServer::TcpServer(const std::string& ip, uint16_t port, std::size_t worker_threads,
+                     int idle_timeout_seconds)
+    : use_pool_(worker_threads > 0),
+      idle_timeout_seconds_(idle_timeout_seconds) {
     listen_fd_ = CreateListenSocket(ip, port, &port_);
     try {
         if (use_pool_) {
@@ -109,6 +113,7 @@ TcpServer::~TcpServer() {
 void TcpServer::Start() {
     running_ = true;
     std::vector<epoll_event> events(64);
+    auto last_sweep = std::chrono::steady_clock::now();
 
     while (running_) {
         const int n = epoll_.Wait(events, 100);
@@ -122,6 +127,37 @@ void TcpServer::Start() {
             }
             Dispatch(fd, ev);
         }
+
+        const auto now = std::chrono::steady_clock::now();
+        if (idle_timeout_seconds_ > 0 && now - last_sweep >= std::chrono::seconds(1)) {
+            SweepIdle();
+            last_sweep = now;
+        }
+    }
+}
+
+void TcpServer::SweepIdle() {
+    if (idle_timeout_seconds_ <= 0) return;
+
+    const std::int64_t now_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now().time_since_epoch())
+            .count();
+    const std::int64_t limit_ms =
+        static_cast<std::int64_t>(idle_timeout_seconds_) * 1000;
+
+    std::vector<int> idle;
+    {
+        std::lock_guard<std::mutex> lock(connections_mutex_);
+        for (const auto& [fd, conn] : connections_) {
+            if (!conn->InFlight() && conn->IdleForMs(now_ms) > limit_ms) {
+                idle.push_back(fd);
+            }
+        }
+    }
+
+    for (int fd : idle) {
+        CloseConnection(fd);
     }
 }
 
@@ -200,12 +236,15 @@ void TcpServer::Dispatch(int fd, std::uint32_t events) {
     auto conn = FindConnection(fd);
     if (!conn) return;
 
+    conn->SetInFlight(true);
     const bool posted = pool_->Post([this, fd, events, conn] {
         if (conn->Connected()) {
             HandleEvents(fd, events);
         }
+        conn->SetInFlight(false);
     });
     if (!posted) {
+        conn->SetInFlight(false);
         CloseConnection(fd);
     }
 }

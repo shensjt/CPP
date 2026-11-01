@@ -17,8 +17,9 @@ void SendError(TcpConnection& conn, int status, std::string body) {
 }  // namespace
 
 HttpServer::HttpServer(std::string ip, uint16_t port, std::string root,
-                       std::size_t workers)
-    : handler_(std::move(root)), server_(ip, port, workers) {
+                       std::size_t workers, int idle_timeout_seconds)
+    : handler_(std::move(root)),
+      server_(ip, port, workers, idle_timeout_seconds) {
     server_.SetMessageCallback([this](TcpConnection& conn) { OnMessage(conn); });
     server_.SetCloseCallback([this](int fd) { OnClose(fd); });
 }
