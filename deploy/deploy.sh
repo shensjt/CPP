@@ -6,12 +6,21 @@ set -euo pipefail
 # 可选：
 #   REMOTE_ROOT=/opt/sjtwebserver
 #   APP_NAME=sjtwebserver
+#   CONTENT=docs/blog 或 blog/demo（默认自动检测）
 
 SSH_TARGET=${SSH_TARGET:?set SSH_TARGET=user@host}
 REMOTE_ROOT=${REMOTE_ROOT:-/opt/sjtwebserver}
 APP_NAME=${APP_NAME:-sjtwebserver}
 
-python3 blog/scripts/build.py
+if [ -z "${CONTENT:-}" ]; then
+  if [ -d docs/blog/posts ]; then
+    CONTENT=docs/blog
+  else
+    CONTENT=blog/demo
+  fi
+fi
+
+python3 blog/scripts/build.py --content "${CONTENT}"
 
 cmake -S . -B build/server -DCMAKE_BUILD_TYPE=Release
 cmake --build build/server -j

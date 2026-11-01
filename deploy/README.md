@@ -54,10 +54,16 @@ SSH_TARGET=webserver@your-server-ip ./deploy/deploy.sh
 
 脚本会：
 
-1. 运行 `blog/scripts/build.py` 生成静态站
+1. 如果本地存在 `docs/blog/posts`，用 `--content docs/blog` 生成你的文章；否则用仓库的 `blog/demo` 示例
 2. 编译 `web_server`
 3. `rsync` 推送 `www/` 和二进制
 4. 保留上一个二进制为 `web_server.prev`，然后重启 systemd 服务
+
+也可以显式指定内容目录：
+
+```bash
+CONTENT=docs/blog SSH_TARGET=webserver@your-server-ip ./deploy/deploy.sh
+```
 
 首次部署前确认远端目录存在：
 
