@@ -32,7 +32,29 @@ sudo systemctl reload caddy
 
 Caddy 会自动申请 Let's Encrypt 证书。前提是域名已解析到服务器，80/443 可达。
 
-## 3. 安装 systemd 服务
+## 3. 安装 systemd 服务（一键）
+
+在仓库根目录、确认已经编译过 `web_server` 且生成过 `www` 后：
+
+```bash
+sudo bash deploy/setup.sh
+```
+
+脚本会：
+
+- 创建 `webserver` 用户（如果不存在）
+- 写 `/etc/systemd/system/sjtwebserver.service`
+- `enable --now`，开机自启、崩溃自动重启
+- 默认 `0.0.0.0:8080`，doc root 是仓库里的 `projects/web_server/www`
+- 检查端口占用、二进制和静态站是否存在
+
+可选参数：
+
+```bash
+sudo HOST=0.0.0.0 PORT=8080 THREADS=4 TIMEOUT=60 bash deploy/setup.sh
+```
+
+也可以手动安装：
 
 ```bash
 sudo cp deploy/sjtwebserver.service /etc/systemd/system/sjtwebserver.service
@@ -42,7 +64,7 @@ sudo systemctl status sjtwebserver
 sudo journalctl -u sjtwebserver -f
 ```
 
-unit 里的路径默认是 `/opt/sjtwebserver`，服务绑定 `127.0.0.1:8080`，空闲连接 60 秒关闭。
+`deploy/sjtwebserver.service` 里的路径默认是 `/opt/sjtwebserver`，和 `setup.sh` 生成的 unit 不完全一样；用脚本时以脚本为准。
 
 ## 4. 部署
 
