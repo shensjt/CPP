@@ -25,8 +25,9 @@ struct ServerGuard {
     TcpServer server;
     std::thread thread;
 
-    explicit ServerGuard(std::size_t workers)
-        : server("127.0.0.1", 0, workers), thread([this] { server.Start(); }) {}
+    explicit ServerGuard(std::size_t workers, int idle_timeout = 60)
+        : server("127.0.0.1", 0, workers, idle_timeout),
+          thread([this] { server.Start(); }) {}
 
     ~ServerGuard() {
         server.Stop();
@@ -91,7 +92,7 @@ bool RecvAll(int fd, std::string& out, std::size_t n) {
 }
 
 bool WaitForConnectionCount(TcpServer& server, std::size_t expected) {
-    for (int i = 0; i < 200; ++i) {
+    for (int i = 0; i < 300; ++i) {
         if (server.ConnectionCount() == expected) return true;
         std::this_thread::sleep_for(10ms);
     }
@@ -179,7 +180,20 @@ TEST(TcpServerPooled_ManyRoundTrips) {
     }
 }
 
-// TSP5：断开后连接数归零，仍可重新连接。
+// TSP5：空闲连接超过 timeout 后被关闭。
+TEST(TcpServerPooled_IdleTimeout) {
+    ServerGuard guard(4, 1);
+    ClientFd client;
+    client.fd = ConnectTo(guard.server.Port());
+    CHECK(client.fd >= 0);
+    CHECK(WaitForConnectionCount(guard.server, 1));
+
+    CHECK(WaitForConnectionCount(guard.server, 0));
+    char c = 0;
+    CHECK_EQ(::recv(client.fd, &c, 1, 0), 0);
+}
+
+// TSP6：断开后连接数归零，仍可重新连接。
 TEST(TcpServerPooled_CloseAndReconnect) {
     ServerGuard guard(4);
 

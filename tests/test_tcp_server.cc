@@ -28,7 +28,9 @@ struct ServerGuard {
     TcpServer server;
     std::thread thread;
 
-    ServerGuard() : server("127.0.0.1", 0), thread([this] { server.Start(); }) {}
+    explicit ServerGuard(std::size_t workers = 0, int idle_timeout = 60)
+        : server("127.0.0.1", 0, workers, idle_timeout),
+          thread([this] { server.Start(); }) {}
 
     ~ServerGuard() {
         server.Stop();
@@ -93,7 +95,7 @@ bool RecvAll(int fd, std::string& out, std::size_t n) {
 }
 
 bool WaitForConnectionCount(TcpServer& server, std::size_t expected) {
-    for (int i = 0; i < 200; ++i) {
+    for (int i = 0; i < 300; ++i) {
         if (server.ConnectionCount() == expected) return true;
         std::this_thread::sleep_for(10ms);
     }
@@ -188,7 +190,20 @@ TEST(TcpServer_PortAssigned) {
     CHECK(server.Port() != 0);
 }
 
-// TS6：非法 IP 在构造期抛异常。
+// TS6：空闲连接超过 timeout 后被服务器关闭。
+TEST(TcpServer_IdleTimeout) {
+    ServerGuard guard(0, 1);
+    ClientFd client;
+    client.fd = ConnectTo(guard.server.Port());
+    CHECK(client.fd >= 0);
+    CHECK(WaitForConnectionCount(guard.server, 1));
+
+    CHECK(WaitForConnectionCount(guard.server, 0));
+    char c = 0;
+    CHECK_EQ(::recv(client.fd, &c, 1, 0), 0);
+}
+
+// TS7：非法 IP 在构造期抛异常。
 TEST(TcpServer_InvalidIpThrows) {
     bool threw = false;
     try {
