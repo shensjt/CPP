@@ -9,6 +9,9 @@ a.out
 *.gch
 build/
 
+# 博客构建产物
+projects/web_server/www/
+
 # 个人编辑器配置
 .vscode/
 

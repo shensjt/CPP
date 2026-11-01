@@ -38,26 +38,59 @@ TcpServer
 - 连接注册 `EPOLLONESHOT`，同一 fd 同一时刻只有一个 worker
 - TLS 由 Caddy 处理，C++ 里只跑明文 HTTP
 
+## 版本
+
+当前可演示快照：`v0.1-demo`。仓库只保存源码、模板、测试和部署配置；`www/` 是构建产物，不入库。
+
 ## 快速开始
 
+首次运行先生成静态站（需要 Python 3、PyYAML、Pygments）：
+
 ```bash
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r blog/requirements.txt
+
+python3 blog/scripts/build.py
 cmake -S . -B build/server -DCMAKE_BUILD_TYPE=Release
 cmake --build build/server -j
 ./build/server/web_server --host 127.0.0.1 --port 8080 \
   --root projects/web_server/www --threads 4 --timeout 60
 ```
 
-打开 `http://127.0.0.1:8080/`。
-
-## 博客构建
+或者用 Makefile：
 
 ```bash
-python3 blog/scripts/build.py
+make deps    # 需要 pip
+make blog
+make server
+make run
+```
+
+`projects/web_server/www/` 是构建产物，不入库。干净 clone 后必须先跑 `build.py`，否则服务器没有可发的内容。
+
+## 博客构建链路
+
+```text
+blog/posts/**/*.md          Markdown + YAML front matter
+        │
+        │ blog/scripts/build.py
+        │   解析 front matter → Markdown 转 HTML
+        │   套 post.html → base.html
+        ▼
+projects/web_server/www/    首页/栏目页/文章页/CSS（构建产物，不入库）
+        │
+        │ web_server --root projects/web_server/www
+        ▼
+浏览器
 ```
 
 - 源文件：`blog/posts/**/*.md`、`blog/about.md`
 - 模板：`blog/templates/`
 - 输出：`projects/web_server/www/`
+- 构建依赖：[blog/requirements.txt](blog/requirements.txt)
+- 详细说明：[blog/README.md](blog/README.md)
+- 部署：`rsync -avz --delete projects/web_server/www/ user@host:/opt/sjtwebserver/www/`
 
 > 仓库里目前只有测试占位文章，正式内容由作者自行填写。
 
