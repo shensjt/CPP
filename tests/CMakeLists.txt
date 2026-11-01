@@ -40,6 +40,7 @@ function(add_component_test name)
     target_include_directories(${name} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/../common
+        ${CMAKE_CURRENT_SOURCE_DIR}/../projects/web_server
     )
     target_link_libraries(${name} PRIVATE Threads::Threads)
 
@@ -85,5 +86,11 @@ add_component_test(net_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/net/epoll.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/net/tcp_server.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/net/tcp_connection.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/net/buffer.cc
+)
+
+add_component_test(web_server_tests
+    test_http_parser.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../projects/web_server/http/http_parser.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/net/buffer.cc
 )
