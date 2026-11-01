@@ -40,7 +40,7 @@ TcpServer
 
 ## 版本
 
-当前可演示快照：`v0.1-demo`。仓库只保存源码、模板、测试和部署配置；`www/` 是构建产物，不入库。
+当前可演示快照：`v0.1-demo`。仓库只保存源码、模板、测试、部署配置和一篇演示文章；`www/` 是构建产物，不入库。
 
 ## 快速开始
 
@@ -63,9 +63,17 @@ cmake --build build/server -j
 
 ```bash
 make deps    # 需要 pip
-make blog
+make blog    # 用仓库里的演示文章
 make server
 make run
+```
+
+你自己的文章不放进公开仓库，放在本地 `docs/blog/`（已 gitignore），构建时指定内容目录：
+
+```bash
+python3 blog/scripts/build.py --content docs/blog
+# 或
+make blog-local
 ```
 
 `projects/web_server/www/` 是构建产物，不入库。干净 clone 后必须先跑 `build.py`，否则服务器没有可发的内容。
@@ -93,7 +101,7 @@ projects/web_server/www/    首页/栏目页/文章页/CSS（构建产物，不�
 - 详细说明：[blog/README.md](blog/README.md)
 - 部署：`rsync -avz --delete projects/web_server/www/ user@host:/opt/sjtwebserver/www/`
 
-> 仓库里目前只有测试占位文章，正式内容由作者自行填写。
+> 仓库里只有一篇演示文章；真实文章放本地 `docs/blog/`，用 `--content docs/blog` 构建，不会进公开仓库。
 
 ## 测试
 

@@ -1,12 +1,15 @@
 PYTHON ?= python3
 
-.PHONY: deps blog server test run
+.PHONY: deps blog blog-local server test run run-local
 
 deps:
 	$(PYTHON) -m pip install -r blog/requirements.txt
 
 blog:
 	$(PYTHON) blog/scripts/build.py
+
+blog-local:
+	$(PYTHON) blog/scripts/build.py --content docs/blog
 
 server:
 	cmake -S . -B build/server -DCMAKE_BUILD_TYPE=Release
@@ -18,5 +21,9 @@ test:
 	ctest --test-dir build/tests --output-on-failure
 
 run: blog server
+	./build/server/web_server --host 127.0.0.1 --port 8080 \
+		--root projects/web_server/www --threads 4 --timeout 60
+
+run-local: blog-local server
 	./build/server/web_server --host 127.0.0.1 --port 8080 \
 		--root projects/web_server/www --threads 4 --timeout 60

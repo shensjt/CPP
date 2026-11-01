@@ -261,9 +261,13 @@ def render_index(config, posts):
     return page(config, "首页", content)
 
 
-def build(out_dir):
+def build(out_dir, content_dir):
     config = load_config()
-    post_paths = sorted((BLOG / "posts").glob("**/*.md"))
+    posts_dir = content_dir / "posts"
+    if not posts_dir.is_dir():
+        raise SystemExit(f"content posts dir not found: {posts_dir}")
+
+    post_paths = sorted(posts_dir.glob("**/*.md"))
     posts = [parse_post(path) for path in post_paths]
     posts = [post for post in posts if not post.get("draft", False)]
     posts.sort(key=lambda post: parse_date(post["date"]), reverse=True)
@@ -288,7 +292,7 @@ def build(out_dir):
 
     (out_dir / "index.html").write_text(render_index(config, posts), encoding="utf-8")
 
-    about_path = BLOG / "about.md"
+    about_path = content_dir / "about.md"
     if about_path.exists():
         about = parse_post(about_path)
         content = template(
@@ -314,7 +318,7 @@ def build(out_dir):
     if assets.exists():
         shutil.copytree(assets, out_dir / "assets", dirs_exist_ok=True)
 
-    print(f"built {len(posts)} posts into {out_dir}")
+    print(f"built {len(posts)} posts from {content_dir} into {out_dir}")
 
 
 def main():
@@ -325,8 +329,14 @@ def main():
         default=ROOT / "projects" / "web_server" / "www",
         help="output directory",
     )
+    parser.add_argument(
+        "--content",
+        type=Path,
+        default=BLOG,
+        help="content directory containing posts/ and about.md",
+    )
     args = parser.parse_args()
-    build(args.out.resolve())
+    build(args.out.resolve(), args.content.resolve())
 
 
 if __name__ == "__main__":

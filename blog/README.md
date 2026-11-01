@@ -1,6 +1,18 @@
 # 博客构建
 
-Markdown 源文件在 `blog/posts/`，构建后生成静态站到 `projects/web_server/www/`。服务器只负责发文件，不需要 Python。
+Markdown 内容在 `blog/posts/`（仓库只带一篇演示文章），构建后生成静态站到 `projects/web_server/www/`。服务器只负责发文件，不需要 Python。
+
+自己的真实文章不要放进公开仓库，放在本地 `docs/blog/`（已被 gitignore），构建时用 `--content docs/blog`。内容目录结构：
+
+```text
+docs/blog/
+├── posts/
+│   ├── devlog/
+│   ├── deepdive/
+│   ├── career/
+│   └── release/
+└── about.md        # 可选
+```
 
 ## 依赖
 
@@ -64,13 +76,17 @@ draft: false
 4. 构建：
 
 ```bash
+# 仓库演示内容
 python3 blog/scripts/build.py
+
+# 本地真实文章
+python3 blog/scripts/build.py --content docs/blog
 ```
 
 输出：
 
 ```text
-built N posts into .../projects/web_server/www
+built N posts from ... into .../projects/web_server/www
 ```
 
 ## 本地预览
@@ -101,3 +117,4 @@ rsync -avz --delete projects/web_server/www/ \
 - `build.py` 会清空并重建 `www/`，不要手改生成后的 HTML。
 - `draft: true` 的文章不会生成。
 - `www/` 已加入 `.gitignore`，只提交源码和模板。
+- 真实文章放在 `docs/blog/`，不要提交；仓库里只保留一篇演示文章。
