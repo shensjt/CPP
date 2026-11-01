@@ -79,6 +79,7 @@ add_component_test(memory_pool_tests
 add_component_test(net_tests
     test_epoll.cc
     test_tcp_server.cc
+    test_tcp_server_pooled.cc
     test_tcp_connection.cc
     test_buffer.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/net/epoll.cc
