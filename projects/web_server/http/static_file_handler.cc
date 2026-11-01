@@ -103,10 +103,11 @@ bool ReadFile(const fs::path& path, std::string& out) {
 
 }  // namespace
 
-StaticFileHandler::StaticFileHandler(std::string root) {
+StaticFileHandler::StaticFileHandler(std::string root, std::size_t cache_bytes)
+    : root_(fs::weakly_canonical(fs::path(std::move(root)))),
+      cache_(cache_bytes) {
     std::error_code ec;
-    root_ = fs::weakly_canonical(fs::path(std::move(root)), ec);
-    if (ec || !fs::is_directory(root_, ec)) {
+    if (!fs::is_directory(root_, ec)) {
         throw std::invalid_argument("invalid document root");
     }
 }
@@ -138,9 +139,13 @@ HttpResponse StaticFileHandler::Handle(const HttpRequest& request) const {
         return MakeError(404, "404 Not Found\n");
     }
 
+    const std::string key = candidate.string();
     std::string body;
-    if (!ReadFile(candidate, body)) {
-        return MakeError(500, "500 Internal Server Error\n");
+    if (!cache_.Get(key, body)) {
+        if (!ReadFile(candidate, body)) {
+            return MakeError(500, "500 Internal Server Error\n");
+        }
+        cache_.Put(key, body, body.size());
     }
 
     HttpResponse response(200);
