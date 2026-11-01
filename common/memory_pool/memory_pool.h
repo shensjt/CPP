@@ -1,101 +1,107 @@
 #pragma once
-#include <vector>
+
+#include <cstddef>
+#include <cstdlib>
 #include <mutex>
-#include <stdlib.h>
+#include <new>
+#include <vector>
 
-
-class MemoryPool{
+// 固定大小分桶的内存池：8B–4KB，共 10 个桶。
+// 每桶一条侵入式空闲链表 + 一把锁；chunk 只增不减，析构统一 free。
+class MemoryPool {
 public:
+    MemoryPool() = default;
 
-MemoryPool() = default;
-~MemoryPool() {
-    for(auto& b : buckets_) {
-        for(void* c : b.chunks_) {
-            std::free(c);
+    ~MemoryPool() {
+        for (auto& b : buckets_) {
+            for (void* c : b.chunks_) {
+                std::free(c);
+            }
         }
     }
-}
 
-MemoryPool& operator=(const MemoryPool&) = delete;
-MemoryPool(const MemoryPool&) = delete;
+    MemoryPool& operator=(const MemoryPool&) = delete;
+    MemoryPool(const MemoryPool&) = delete;
 
+    // size 为 0 按 1 处理；超过 4KB 直接走系统 malloc。
+    void* Allocate(size_t size) {
+        if (size == 0) {
+            size = 1;
+        }
+        if (size > MaxBlock_) {
+            return std::malloc(size);
+        }
 
-void* Allocate(size_t size) {
-    if(size == 0) size =1;
-    if(size > MaxBlock_) return std::malloc(size);
+        const size_t index = GetIndex(size);
+        Bucket& b = buckets_[index];
 
-    const size_t index = GetIndex(size);
-    Bucket& b = buckets_[index];
-    // 开始操作共享数据，加锁
-    std::lock_guard<std::mutex> lg(b.mutex_);
-    if(b.p_head_ == nullptr)
-        ReFill(b, MinBlock_ << index);
-    // 从头拿
-    void* p = b.p_head_;
-    // 链表移除,更新头为之前的下一个
-    b.p_head_ = *reinterpret_cast<void**>(b.p_head_);
-    return p;
-}
+        std::lock_guard<std::mutex> lg(b.mutex_);
+        if (b.p_head_ == nullptr) {
+            ReFill(b, MinBlock_ << index);
+        }
 
-void Deallocate(void* p, size_t size) {
-    if (p == nullptr) return;
-    if(size > MaxBlock_){
-        std::free(p);
-        return;
+        void* p = b.p_head_;
+        b.p_head_ = *reinterpret_cast<void**>(b.p_head_);
+        return p;
     }
 
-    const size_t index = GetIndex(size);
-    Bucket& b = buckets_[index];
+    // size 必须是分配时的 size（或同一大小类），否则会还错桶。
+    void Deallocate(void* p, size_t size) {
+        if (p == nullptr) {
+            return;
+        }
+        if (size > MaxBlock_) {
+            std::free(p);
+            return;
+        }
 
-    // 开始操作共享数据，加锁
-    std::lock_guard<std::mutex> lg(b.mutex_);
+        const size_t index = GetIndex(size);
+        Bucket& b = buckets_[index];
 
-    // 本质是把内存块放回链表
-    *reinterpret_cast<void**>(p) = b.p_head_;
-    b.p_head_ = p;
-}
+        std::lock_guard<std::mutex> lg(b.mutex_);
+        *reinterpret_cast<void**>(p) = b.p_head_;
+        b.p_head_ = p;
+    }
 
 private:
     static constexpr size_t MaxBlock_ = 4096;
     static constexpr size_t MinBlock_ = 8;
     static constexpr size_t NumBucket_ = 10;
     static constexpr size_t ChunkSize_ = 4 * 1024 * 1024;
-    struct Bucket
-    {
-        // 链表头指针
-        void* p_head_ = nullptr;
-        // 还没使用的内存块的指针，存单
-        std::vector<void*> chunks_;
-        std::mutex mutex_;
+
+    struct Bucket {
+        void* p_head_ = nullptr;     // 空闲链表头
+        std::vector<void*> chunks_;  // 这个桶从系统申请的 chunk
+        std::mutex mutex_;           // 保护上面两个字段
     };
-    // 十个规格的buckets
+
     Bucket buckets_[NumBucket_];
 
-    // 当一个bucket为空时，重新根据大小填充并划分
+    // 调用方必须已持有 b.mutex_。
     void ReFill(Bucket& b, size_t block_size) {
         void* chunk = std::malloc(ChunkSize_);
-        if(chunk == nullptr) throw std::bad_alloc();
-        // 新建的chunk放入存储
+        if (chunk == nullptr) {
+            throw std::bad_alloc();
+        }
+        // TODO: push_back 抛异常时释放 chunk
         b.chunks_.push_back(chunk);
 
-        // 开始划分
         char* begin = static_cast<char*>(chunk);
         char* end = begin + ChunkSize_;
-        for(char* p = begin; p + block_size <= end; p += block_size) {
+        for (char* p = begin; p + block_size <= end; p += block_size) {
             *reinterpret_cast<void**>(p) = b.p_head_;
             b.p_head_ = p;
         }
     }
 
-    // 10为超过数组，大内存直接malloc
+    // 返回 8 << i；调用前保证 size <= MaxBlock_。
     static int GetIndex(size_t size) {
         size_t index = 0;
         size_t compare_size = MinBlock_;
-        while(compare_size < size) {
+        while (compare_size < size) {
             compare_size <<= 1;
-            index++;
+            ++index;
         }
         return index;
     }
-
 };
