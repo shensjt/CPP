@@ -169,7 +169,21 @@ TEST(StaticFile_QueryIgnored) {
     CHECK_EQ(response.Body(), std::string("home"));
 }
 
-// SF12：指向 document root 外的符号链接被拦截。
+// SF12：文件内容会进 LRU，更新文件后需要重启/清缓存才能看到新内容。
+TEST(StaticFile_CacheHit) {
+    TempDir dir;
+    dir.Write("index.html", "old-content");
+
+    StaticFileHandler handler(dir.path.string());
+    CHECK_EQ(handler.Handle(MakeRequest("/index.html")).Body(),
+             std::string("old-content"));
+
+    dir.Write("index.html", "new-content");
+    CHECK_EQ(handler.Handle(MakeRequest("/index.html")).Body(),
+             std::string("old-content"));
+}
+
+// SF13：指向 document root 外的符号链接被拦截。
 TEST(StaticFile_SymlinkEscape) {
     TempDir dir;
     std::error_code ec;

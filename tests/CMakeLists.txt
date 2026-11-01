@@ -98,6 +98,7 @@ add_component_test(web_server_tests
     test_http_parser.cc
     test_http_response.cc
     test_static_file.cc
+    test_lru_cache.cc
     test_http_server.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../projects/web_server/http/http_parser.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../projects/web_server/http/http_response.cc
