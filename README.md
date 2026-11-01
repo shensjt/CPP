@@ -51,6 +51,7 @@ python3 -m venv .venv
 . .venv/bin/activate
 pip install -r blog/requirements.txt
 
+# 如果环境已装 PyYAML/Pygments，可以跳过 venv，直接从下一行开始
 python3 blog/scripts/build.py
 cmake -S . -B build/server -DCMAKE_BUILD_TYPE=Release
 cmake --build build/server -j
