@@ -332,7 +332,7 @@ def main():
     parser.add_argument(
         "--content",
         type=Path,
-        default=BLOG,
+        default=BLOG / "demo",
         help="content directory containing posts/ and about.md",
     )
     args = parser.parse_args()

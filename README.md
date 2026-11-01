@@ -94,7 +94,8 @@ projects/web_server/www/    首页/栏目页/文章页/CSS（构建产物，不�
 浏览器
 ```
 
-- 源文件：`blog/posts/**/*.md`、`blog/about.md`
+- 演示内容：`blog/demo/posts/**/*.md`、`blog/demo/about.md`
+- 个人内容：`docs/blog/`（本地，gitignore）
 - 模板：`blog/templates/`
 - 输出：`projects/web_server/www/`
 - 构建依赖：[blog/requirements.txt](blog/requirements.txt)

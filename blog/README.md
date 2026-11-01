@@ -1,6 +1,6 @@
 # 博客构建
 
-Markdown 内容在 `blog/posts/`（仓库只带一篇演示文章），构建后生成静态站到 `projects/web_server/www/`。服务器只负责发文件，不需要 Python。
+仓库只带 `blog/demo/` 里的演示内容；你自己的文章放本地 `docs/blog/`。构建后生成静态站到 `projects/web_server/www/`。服务器只负责发文件，不需要 Python。
 
 自己的真实文章不要放进公开仓库，放在本地 `docs/blog/`（已被 gitignore），构建时用 `--content docs/blog`。内容目录结构：
 
@@ -33,13 +33,10 @@ sudo apt install python3-yaml python3-pygments
 ```text
 blog/
 ├── config.yaml          站点名、作者、GitHub
-├── about.md             关于页
-├── post-template.md     文章模板，不在 posts/ 下，不会被构建
-├── posts/
-│   ├── devlog/
-│   ├── deepdive/
-│   ├── career/
-│   └── release/
+├── post-template.md     文章模板，不会被构建
+├── demo/                仓库里的演示内容
+│   ├── about.md
+│   └── posts/devlog/example.md
 ├── templates/
 │   ├── base.html        页面骨架
 │   ├── index.html       首页
@@ -50,12 +47,22 @@ blog/
 └── scripts/build.py
 ```
 
+你的真实内容放在本地：
+
+```text
+docs/blog/
+├── posts/devlog/...
+├── posts/deepdive/...
+└── about.md
+```
+
 ## 写一篇文章
 
-1. 复制模板：
+1. 复制模板到本地内容目录（不进 Git）：
 
 ```bash
-cp blog/post-template.md blog/posts/devlog/2026-11-02-first-post.md
+mkdir -p docs/blog/posts/devlog
+cp blog/post-template.md docs/blog/posts/devlog/2026-11-02-first-post.md
 ```
 
 2. 填 front matter：
@@ -76,7 +83,7 @@ draft: false
 4. 构建：
 
 ```bash
-# 仓库演示内容
+# 仓库演示内容（默认）
 python3 blog/scripts/build.py
 
 # 本地真实文章
