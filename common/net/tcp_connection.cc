@@ -38,7 +38,9 @@ void TcpConnection::Send(const std::string& data) {
 
     write_buffer_.Append(data);
     Flush();
-    UpdateInterest();
+    if (!one_shot_) {
+        UpdateInterest();
+    }
 }
 
 bool TcpConnection::HandleRead() {
@@ -70,8 +72,16 @@ bool TcpConnection::HandleWrite() {
     if (!connected_) return false;
 
     Flush();
-    UpdateInterest();
+    if (!one_shot_) {
+        UpdateInterest();
+    }
     return connected_;
+}
+
+void TcpConnection::Rearm() {
+    if (connected_) {
+        UpdateInterest();
+    }
 }
 
 void TcpConnection::Flush() {
@@ -96,6 +106,9 @@ void TcpConnection::UpdateInterest() {
     std::uint32_t events = EPOLLIN;
     if (write_buffer_.ReadableBytes() > 0) {
         events |= EPOLLOUT;
+    }
+    if (one_shot_) {
+        events |= EPOLLONESHOT;
     }
 
     try {

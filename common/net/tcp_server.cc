@@ -72,9 +72,13 @@ int CreateListenSocket(const std::string& ip, uint16_t port, uint16_t* bound_por
 
 }  // namespace
 
-TcpServer::TcpServer(const std::string& ip, uint16_t port) {
+TcpServer::TcpServer(const std::string& ip, uint16_t port, std::size_t worker_threads)
+    : use_pool_(worker_threads > 0) {
     listen_fd_ = CreateListenSocket(ip, port, &port_);
     try {
+        if (use_pool_) {
+            pool_ = std::make_unique<ThreadPool>(worker_threads);
+        }
         epoll_.Add(listen_fd_, EPOLLIN);
     } catch (...) {
         ::close(listen_fd_);
@@ -85,10 +89,17 @@ TcpServer::TcpServer(const std::string& ip, uint16_t port) {
 
 TcpServer::~TcpServer() {
     Stop();
-    for (auto& [fd, conn] : connections_) {
-        conn->Close();
+    // 先等 worker 退出，之后连接表和 this 才能安全销毁
+    pool_.reset();
+
+    {
+        std::lock_guard<std::mutex> lock(connections_mutex_);
+        for (auto& [fd, conn] : connections_) {
+            conn->Close();
+        }
+        connections_.clear();
     }
-    connections_.clear();
+
     if (listen_fd_ >= 0) {
         ::close(listen_fd_);
     }
@@ -108,32 +119,7 @@ void TcpServer::Start() {
                 HandleAccept();
                 continue;
             }
-
-            auto it = connections_.find(fd);
-            if (it == connections_.end()) {
-                continue;
-            }
-            TcpConnection& conn = *it->second;
-
-            if (ev & EPOLLIN) {
-                if (!conn.HandleRead()) {
-                    CloseConnection(fd);
-                    continue;
-                }
-            }
-            if (!conn.Connected()) {
-                CloseConnection(fd);
-                continue;
-            }
-            if (ev & (EPOLLERR | EPOLLHUP)) {
-                CloseConnection(fd);
-                continue;
-            }
-            if (ev & EPOLLOUT) {
-                if (!conn.HandleWrite()) {
-                    CloseConnection(fd);
-                }
-            }
+            Dispatch(fd, ev);
         }
     }
 }
@@ -161,33 +147,114 @@ void TcpServer::HandleAccept() {
             throw;
         }
 
-        std::unique_ptr<TcpConnection> conn;
+        std::shared_ptr<TcpConnection> conn;
         try {
-            conn = std::make_unique<TcpConnection>(&epoll_, fd);
+            conn = std::make_shared<TcpConnection>(&epoll_, fd);
         } catch (...) {
             ::close(fd);
             throw;
         }
+        conn->SetOneShot(use_pool_);
         conn->SetMessageCallback([](TcpConnection& c) {
             c.Send(c.ReadBuffer().RetrieveAllAsString());
         });
 
-        connections_.emplace(fd, std::move(conn));
+        {
+            std::lock_guard<std::mutex> lock(connections_mutex_);
+            connections_.emplace(fd, conn);
+        }
+
+        std::uint32_t events = EPOLLIN;
+        if (use_pool_) {
+            events |= EPOLLONESHOT;
+        }
         try {
-            epoll_.Add(fd, EPOLLIN);
+            epoll_.Add(fd, events);
         } catch (...) {
-            connections_.erase(fd);
+            CloseConnection(fd);
             throw;
         }
         connection_count_.fetch_add(1);
     }
 }
 
-void TcpServer::CloseConnection(int fd) {
-    auto it = connections_.find(fd);
-    if (it == connections_.end()) return;
+void TcpServer::Dispatch(int fd, std::uint32_t events) {
+    if (!use_pool_) {
+        HandleEvents(fd, events);
+        return;
+    }
 
-    it->second->Close();
-    connections_.erase(it);
+    auto conn = FindConnection(fd);
+    if (!conn) return;
+
+    const bool posted = pool_->Post([this, fd, events, conn] {
+        if (conn->Connected()) {
+            HandleEvents(fd, events);
+        }
+    });
+    if (!posted) {
+        CloseConnection(fd);
+    }
+}
+
+void TcpServer::HandleEvents(int fd, std::uint32_t events) {
+    auto conn = FindConnection(fd);
+    if (!conn || !conn->Connected()) return;
+
+    if (events & EPOLLIN) {
+        if (!conn->HandleRead()) {
+            CloseConnection(fd);
+            return;
+        }
+    }
+    if (!conn->Connected()) {
+        CloseConnection(fd);
+        return;
+    }
+
+    if (events & (EPOLLERR | EPOLLHUP)) {
+        conn->Close();
+        CloseConnection(fd);
+        return;
+    }
+
+    if (events & EPOLLOUT) {
+        if (!conn->HandleWrite()) {
+            CloseConnection(fd);
+            return;
+        }
+    }
+    if (!conn->Connected()) {
+        CloseConnection(fd);
+        return;
+    }
+
+    if (use_pool_) {
+        conn->Rearm();
+        if (!conn->Connected()) {
+            CloseConnection(fd);
+        }
+    }
+}
+
+std::shared_ptr<TcpConnection> TcpServer::FindConnection(int fd) {
+    std::lock_guard<std::mutex> lock(connections_mutex_);
+    auto it = connections_.find(fd);
+    return it == connections_.end() ? nullptr : it->second;
+}
+
+void TcpServer::CloseConnection(int fd) {
+    std::shared_ptr<TcpConnection> conn;
+    {
+        std::lock_guard<std::mutex> lock(connections_mutex_);
+        auto it = connections_.find(fd);
+        if (it == connections_.end()) return;
+        conn = std::move(it->second);
+        connections_.erase(it);
+    }
+
+    if (conn) {
+        conn->Close();
+    }
     connection_count_.fetch_sub(1);
 }

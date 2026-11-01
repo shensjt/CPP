@@ -8,6 +8,7 @@
 
 // 一个已建立的连接：fd + 读 Buffer + 写 Buffer + 回调。
 // 构造时把 fd 设为非阻塞；HandleRead/HandleWrite 返回 false 表示已关闭。
+// OneShot 模式下 Send/HandleWrite 不自动重新注册，由 worker 最后调用 Rearm()。
 class TcpConnection {
 public:
     TcpConnection(Epoll* epoll, int fd);
@@ -21,12 +22,14 @@ public:
     Buffer& ReadBuffer() { return read_buffer_; }
 
     void SetMessageCallback(std::function<void(TcpConnection&)> cb);
+    void SetOneShot(bool enabled) { one_shot_ = enabled; }
 
     // 追加到写缓冲并尽量发送；发不完时自动关注 EPOLLOUT。
     void Send(const std::string& data);
 
     bool HandleRead();
     bool HandleWrite();
+    void Rearm();
     void Close();
 
 private:
@@ -39,4 +42,5 @@ private:
     Buffer read_buffer_;
     Buffer write_buffer_;
     std::function<void(TcpConnection&)> on_message_;
+    bool one_shot_ = false;
 };
