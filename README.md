@@ -1,8 +1,17 @@
+# SJT C++ Projects
+
+两个共享同一套基础设施的 C++17 项目：
+
+- **SJTWebServer**：epoll + 线程池的高并发静态 Web 服务器，博客站点线上运行
+- **KV Store**：Redis 风格的跳表 KV 存储，支持 RESP 协议、读写锁和 AOF 持久化
+
+---
+
 # SJTWebServer
 
 一个从零实现的高并发静态 Web 服务器：C++17 + epoll + 线程池，支持 HTTP/1.1 keep-alive、静态文件、LRU 缓存、异步日志和空闲连接超时。博客站点本身就跑在这台服务器上。
 
-## 功能
+## Web Server · 功能
 
 - 线程池 + 阻塞队列，任务投递与优雅停机
 - epoll 事件循环，非阻塞 IO，`EPOLLONESHOT` 下 worker 拥有连接
@@ -15,7 +24,7 @@
 - 空闲连接超时，默认 60 秒
 - 路径穿越、URL 编码绕过、符号链接逃逸防护
 
-## 架构
+## Web Server · 架构
 
 ```text
 浏览器
@@ -40,7 +49,10 @@ TcpServer
 
 ## 版本
 
-当前可演示快照：`v0.1-demo`。仓库只保存源码、模板、测试、部署配置和一篇演示文章；`www/` 是构建产物，不入库。
+- `v0.1-demo`：Web Server 可演示快照
+- `v0.2-kv`：KV Store（跳表 + RESP + 读写锁 + AOF）
+
+仓库只保存源码、模板、测试、部署配置和一篇演示文章；`www/` 是构建产物，不入库。
 
 ## 环境要求
 
@@ -133,13 +145,14 @@ cmake --build build/tests -j
 ctest --test-dir build/tests --output-on-failure
 ```
 
-当前 5 个测试可执行文件、127 个用例：
+当前 6 个测试可执行文件、191 个用例：
 
 - 线程池 / 阻塞队列
 - 内存池
 - Epoll / Buffer / TcpServer / TcpConnection
 - HTTP 解析 / 响应 / 静态文件 / LRU / HttpServer
 - 异步日志
+- KV：跳表 / RESP / KVStore / 命令分发 / AOF / 服务集成
 
 Sanitizer 构建：
 
@@ -176,6 +189,98 @@ HTTP keep-alive（`GET /`，1.35KB 响应，16 客户端）：
 
 结论：Echo 这类几乎无计算量的场景，线程池开销大于收益；HTTP 解析 + 静态文件有实际工作，4 worker 提升约 2.5 倍。
 
+---
+
+# KV Store
+
+Redis 风格的 KV 存储，复用 Web Server 的 `common/net`、线程池和测试体系。
+
+## KV · 功能
+
+- RESP 协议：数组 + inline 命令，二进制安全，半包不消费 Buffer
+- 字符串 KV + 有序集合 ZSet（`unordered_map` + 跳表）
+- `PING / SET / GET / DEL / EXISTS`
+- `ZADD / ZSCORE / ZREM / ZRANGE / ZRANGEBYSCORE`
+- `std::shared_mutex` 读写锁：读读并行，写写串行
+- AOF：RESP 编码追加、everysec fsync、启动 replay、尾部截断修复
+- `sigwait` 优雅停机：worker 退出后才停 AOF
+- 压测客户端 `bench_kv`
+
+## KV · 架构
+
+```text
+nc / Redis 客户端
+  │ RESP over TCP
+  ▼
+TcpServer（epoll + ThreadPool + EPOLLONESHOT）
+  │
+  ▼
+KvServer::OnMessage
+  ├── resp::Parser          无状态，半包留在 Buffer
+  ├── CommandHandler        参数校验 + RESP 响应
+  │     └── KvStore（shared_mutex）
+  │           ├── unordered_map<string, Entry>
+  │           └── ZSet ── dict(member→score) + SkipList(score, member)
+  └── Aof                   写锁内追加，后台 everysec fsync
+```
+
+## KV · 命令
+
+| 命令 | 说明 |
+|---|---|
+| `PING` | 连通性 |
+| `SET key value` | 字符串写入 |
+| `GET key` | 字符串读取 |
+| `DEL key [key...]` | 删除，返回删除数量 |
+| `EXISTS key [key...]` | 存在性 |
+| `ZADD key score member [score member...]` | 有序集合写入，返回新增 member 数 |
+| `ZSCORE key member` | 查 score |
+| `ZREM key member [member...]` | 删除 member |
+| `ZRANGE key start stop` | 按名次，支持负下标 |
+| `ZRANGEBYSCORE key min max` | 按 score，支持 `(`、`-inf`、`+inf` |
+
+## KV · 运行
+
+```bash
+# 编译全部目标（web_server / kv_store / bench_kv）
+cmake -S . -B build/server -DCMAKE_BUILD_TYPE=Release
+cmake --build build/server -j
+
+# 默认 AOF 路径 data/kv.aof
+./build/server/kv_store --host 127.0.0.1 --port 6380 --threads 4
+
+# 关闭持久化
+./build/server/kv_store --port 6380 --threads 4 --no-aof
+
+# 另一个终端
+nc 127.0.0.1 6380
+```
+
+也可以用 `make run-kv`。
+
+## KV · 压测
+
+环境同 Web Server：WSL2 / Ubuntu，AMD Ryzen 7 7840H，16 逻辑核；客户端与服务端同机，数字只用于相对比较。
+
+128 客户端，每组 16 万请求，3 次取中位数：
+
+| 配置 | SET | GET | MIXED |
+|---|---|---|---|
+| 单 IO 线程 | 55.6k | 54.0k | 57.4k |
+| 4 worker | 92.0k | 107.2k | 80.3k |
+| 4 worker + AOF everysec | 76.7k | 109.7k | 69.3k |
+
+结论：
+
+- 4 worker 对 SET 提升约 1.65 倍，对 GET 提升约 2 倍
+- AOF 只影响写路径：SET 下降约 17%，GET 基本不变
+- everysec 的代价是崩溃最多丢约 1 秒数据
+- 压测客户端本身也会成为瓶颈，数字用于横向比较
+
+---
+
+# 工程与交付
+
 ## 目录结构
 
 ```text
@@ -188,6 +293,14 @@ projects/web_server/
   http/            HttpParser / HttpResponse / StaticFileHandler / HttpServer
   lru_cache/       LRU
   www/             生成的静态站点
+projects/kv_store/
+  skiplist/        跳表（有序集合）
+  store/           KVStore / ZSet / 分数格式
+  protocol/        RESP 解析与序列化
+  command/         命令分发
+  aof/             AOF 追加、刷盘、回放
+  server/          KvServer
+  bench/           bench_kv 压测客户端
 blog/              博客源文件、模板、构建脚本
 tests/             单元/集成测试
 deploy/            Caddyfile、systemd、部署脚本
@@ -195,11 +308,24 @@ deploy/            Caddyfile、systemd、部署脚本
 
 ## 已知限制
 
+Web Server：
+
 - 没有实现 sendfile，大文件仍走用户态缓冲
 - 内存池尚未接入 Web 服务器，目前作为独立组件
 - TLS 不在 C++ 内实现，交给 Caddy
 - 没有限流、连接数上限和认证
-- KV 存储（跳表 + AOF）还在规划中
+
+KV Store：
+
+- AOF 没有实现重写，文件会随写操作持续增长
+- `ZRANGE` 按名次是 O(N)，没有 Redis 的 `span` 优化
+- 没有 key 过期、淘汰策略、事务和集群
+- AOF everysec 在崩溃时最多丢约 1 秒数据
+- 没有认证和限流
+- 压测客户端与服务端同机，数字只做相对比较
+
+其他：
+
 - 博客仓库只带一篇演示文章，真实内容在本地 `docs/blog/` 维护
 
 ## 部署
