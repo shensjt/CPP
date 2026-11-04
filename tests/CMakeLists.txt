@@ -97,6 +97,14 @@ add_component_test(log_tests
 
 add_component_test(kv_tests
     test_skiplist.cc
+    test_resp.cc
+    test_kv_store.cc
+    test_command_handler.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../projects/kv_store/protocol/resp.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../projects/kv_store/store/zset.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../projects/kv_store/store/kv_store.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../projects/kv_store/command/command_handler.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/net/buffer.cc
 )
 
 add_component_test(web_server_tests
