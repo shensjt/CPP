@@ -14,8 +14,10 @@
 // 与 Redis zset 的分工一致；本身不加锁，由 KvStore 外层保护。
 class ZSet {
 public:
-    // 新增 member 返回 true；更新已有 member 的 score 返回 false。
-    bool Add(double score, const std::string& member);
+    enum class AddResult { kAdded, kUpdated, kUnchanged };
+
+    // 区分新增、更新、无变化：AOF 只记录真正改变状态的命令。
+    AddResult Add(double score, const std::string& member);
     bool Remove(const std::string& member);
     std::optional<double> Score(const std::string& member) const;
 

@@ -10,8 +10,10 @@
 
 #include "store/zset.h"
 
+class Aof;
+
 // KV 存储：string 和 zset 共用一个 key 空间，类型冲突返回 kWrongType。
-// 本身不加锁；并发版本在 M3 用 shared_mutex 包一层。
+// 写方法在持写锁期间把命令追加到 AOF，保证落盘顺序和生效顺序一致。
 class KvStore {
 public:
     enum class Status { kOk, kNotFound, kWrongType };
@@ -38,6 +40,9 @@ public:
 
     std::size_t Size() const;
 
+    // 传 nullptr 表示不持久化（单测、AOF replay 期间）。
+    void SetAof(Aof* aof) { aof_ = aof; }
+
 private:
     struct Entry {
         enum class Type { kString, kZSet };
@@ -51,6 +56,7 @@ private:
     const Entry* Find(const std::string& key) const;
 
     std::unordered_map<std::string, Entry> data_;
+    Aof* aof_ = nullptr;
     // 读多写少：GET/ZRANGE 用 shared_lock，SET/ZADD 用 unique_lock。
     mutable std::shared_mutex mutex_;
 };

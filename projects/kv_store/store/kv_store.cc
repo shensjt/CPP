@@ -7,10 +7,17 @@
 #include <utility>
 #include <vector>
 
+#include "aof/aof.h"
+#include "protocol/resp.h"
+#include "store/score_format.h"
+
 KvStore::Status KvStore::Set(const std::string& key, std::string value) {
     std::unique_lock<std::shared_mutex> lock(mutex_);
     const auto it = data_.find(key);
     if (it == data_.end()) {
+        if (aof_ != nullptr) {
+            aof_->Append(resp::EncodeCommand({"SET", key, value}));
+        }
         Entry entry;
         entry.type = Entry::Type::kString;
         entry.str = std::move(value);
@@ -19,6 +26,9 @@ KvStore::Status KvStore::Set(const std::string& key, std::string value) {
     }
     if (it->second.type != Entry::Type::kString) {
         return Status::kWrongType;
+    }
+    if (aof_ != nullptr) {
+        aof_->Append(resp::EncodeCommand({"SET", key, value}));
     }
     it->second.str = std::move(value);
     return Status::kOk;
@@ -39,7 +49,11 @@ KvStore::Status KvStore::Get(const std::string& key, std::string* value) const {
 
 bool KvStore::Del(const std::string& key) {
     std::unique_lock<std::shared_mutex> lock(mutex_);
-    return data_.erase(key) > 0;
+    const bool erased = data_.erase(key) > 0;
+    if (erased && aof_ != nullptr) {
+        aof_->Append(resp::EncodeCommand({"DEL", key}));
+    }
+    return erased;
 }
 
 bool KvStore::Exists(const std::string& key) const {
@@ -64,12 +78,29 @@ KvStore::Status KvStore::ZAdd(
     }
 
     std::size_t count = 0;
+    bool changed = false;
     for (const auto& item : items) {
-        if (entry->zset->Add(item.first, item.second)) {
+        const auto result = entry->zset->Add(item.first, item.second);
+        if (result == ZSet::AddResult::kAdded) {
             ++count;
+        }
+        if (result != ZSet::AddResult::kUnchanged) {
+            changed = true;
         }
     }
     *added = count;
+
+    if (changed && aof_ != nullptr) {
+        std::vector<std::string> args;
+        args.reserve(2 + items.size() * 2);
+        args.emplace_back("ZADD");
+        args.push_back(key);
+        for (const auto& item : items) {
+            args.push_back(FormatScore(item.first));
+            args.push_back(item.second);
+        }
+        aof_->Append(resp::EncodeCommand(args));
+    }
     return Status::kOk;
 }
 
@@ -112,6 +143,15 @@ KvStore::Status KvStore::ZRem(const std::string& key,
         }
     }
     *removed = count;
+
+    if (count > 0 && aof_ != nullptr) {
+        std::vector<std::string> args;
+        args.reserve(2 + members.size());
+        args.emplace_back("ZREM");
+        args.push_back(key);
+        args.insert(args.end(), members.begin(), members.end());
+        aof_->Append(resp::EncodeCommand(args));
+    }
     return Status::kOk;
 }
 

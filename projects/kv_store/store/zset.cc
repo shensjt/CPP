@@ -6,21 +6,21 @@
 #include <utility>
 #include <vector>
 
-bool ZSet::Add(double score, const std::string& member) {
+ZSet::AddResult ZSet::Add(double score, const std::string& member) {
     const auto it = scores_.find(member);
     if (it != scores_.end()) {
         if (it->second == score) {
-            return false;
+            return AddResult::kUnchanged;
         }
         ordered_.Erase(ScoreMember{it->second, member});
         it->second = score;
         ordered_.Insert(ScoreMember{score, member});
-        return false;
+        return AddResult::kUpdated;
     }
 
     scores_.emplace(member, score);
     ordered_.Insert(ScoreMember{score, member});
-    return true;
+    return AddResult::kAdded;
 }
 
 bool ZSet::Remove(const std::string& member) {
