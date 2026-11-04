@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <shared_mutex>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -35,7 +36,7 @@ public:
                          bool min_exclusive, double max, bool max_exclusive,
                          std::vector<std::string>* out) const;
 
-    std::size_t Size() const { return data_.size(); }
+    std::size_t Size() const;
 
 private:
     struct Entry {
@@ -45,8 +46,11 @@ private:
         std::unique_ptr<ZSet> zset;
     };
 
+    // 下面两个函数不加锁，调用方必须已持有 mutex_。
     Entry* FindOrCreateZSet(const std::string& key, Status* status);
     const Entry* Find(const std::string& key) const;
 
     std::unordered_map<std::string, Entry> data_;
+    // 读多写少：GET/ZRANGE 用 shared_lock，SET/ZADD 用 unique_lock。
+    mutable std::shared_mutex mutex_;
 };

@@ -2,11 +2,13 @@
 
 #include <cstddef>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 #include <vector>
 
 KvStore::Status KvStore::Set(const std::string& key, std::string value) {
+    std::unique_lock<std::shared_mutex> lock(mutex_);
     const auto it = data_.find(key);
     if (it == data_.end()) {
         Entry entry;
@@ -23,6 +25,7 @@ KvStore::Status KvStore::Set(const std::string& key, std::string value) {
 }
 
 KvStore::Status KvStore::Get(const std::string& key, std::string* value) const {
+    std::shared_lock<std::shared_mutex> lock(mutex_);
     const Entry* entry = Find(key);
     if (entry == nullptr) {
         return Status::kNotFound;
@@ -34,16 +37,26 @@ KvStore::Status KvStore::Get(const std::string& key, std::string* value) const {
     return Status::kOk;
 }
 
-bool KvStore::Del(const std::string& key) { return data_.erase(key) > 0; }
+bool KvStore::Del(const std::string& key) {
+    std::unique_lock<std::shared_mutex> lock(mutex_);
+    return data_.erase(key) > 0;
+}
 
 bool KvStore::Exists(const std::string& key) const {
+    std::shared_lock<std::shared_mutex> lock(mutex_);
     return data_.find(key) != data_.end();
+}
+
+std::size_t KvStore::Size() const {
+    std::shared_lock<std::shared_mutex> lock(mutex_);
+    return data_.size();
 }
 
 KvStore::Status KvStore::ZAdd(
     const std::string& key,
     const std::vector<std::pair<double, std::string>>& items,
     std::size_t* added) {
+    std::unique_lock<std::shared_mutex> lock(mutex_);
     Status status = Status::kOk;
     Entry* entry = FindOrCreateZSet(key, &status);
     if (entry == nullptr) {
@@ -63,6 +76,7 @@ KvStore::Status KvStore::ZAdd(
 KvStore::Status KvStore::ZScore(const std::string& key,
                                 const std::string& member,
                                 double* score) const {
+    std::shared_lock<std::shared_mutex> lock(mutex_);
     const Entry* entry = Find(key);
     if (entry == nullptr) {
         return Status::kNotFound;
@@ -82,6 +96,7 @@ KvStore::Status KvStore::ZScore(const std::string& key,
 KvStore::Status KvStore::ZRem(const std::string& key,
                               const std::vector<std::string>& members,
                               std::size_t* removed) {
+    std::unique_lock<std::shared_mutex> lock(mutex_);
     const auto it = data_.find(key);
     if (it == data_.end()) {
         return Status::kNotFound;
@@ -103,6 +118,7 @@ KvStore::Status KvStore::ZRem(const std::string& key,
 KvStore::Status KvStore::ZRangeByRank(const std::string& key, long long start,
                                       long long stop,
                                       std::vector<std::string>* out) const {
+    std::shared_lock<std::shared_mutex> lock(mutex_);
     out->clear();
     const Entry* entry = Find(key);
     if (entry == nullptr) {
@@ -118,6 +134,7 @@ KvStore::Status KvStore::ZRangeByRank(const std::string& key, long long start,
 KvStore::Status KvStore::ZRangeByScore(
     const std::string& key, double min, bool min_exclusive, double max,
     bool max_exclusive, std::vector<std::string>* out) const {
+    std::shared_lock<std::shared_mutex> lock(mutex_);
     out->clear();
     const Entry* entry = Find(key);
     if (entry == nullptr) {
