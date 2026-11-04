@@ -39,10 +39,15 @@ add_library(kv STATIC
     projects/kv_store/store/zset.cc
     projects/kv_store/store/kv_store.cc
     projects/kv_store/command/command_handler.cc
+    projects/kv_store/server/kv_server.cc
 )
 target_include_directories(kv PUBLIC projects/kv_store common)
 target_link_libraries(kv PUBLIC net)
 target_compile_options(kv PRIVATE -Wall -Wextra -Wpedantic)
+
+add_executable(kv_store projects/kv_store/main.cpp)
+target_link_libraries(kv_store PRIVATE kv log)
+target_compile_options(kv_store PRIVATE -Wall -Wextra -Wpedantic)
 
 add_executable(web_server projects/web_server/main.cpp)
 target_link_libraries(web_server PRIVATE http)
