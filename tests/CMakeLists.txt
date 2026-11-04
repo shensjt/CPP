@@ -41,6 +41,7 @@ function(add_component_test name)
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/../common
         ${CMAKE_CURRENT_SOURCE_DIR}/../projects/web_server
+        ${CMAKE_CURRENT_SOURCE_DIR}/../projects/kv_store
     )
     target_link_libraries(${name} PRIVATE Threads::Threads)
 
@@ -92,6 +93,10 @@ add_component_test(net_tests
 add_component_test(log_tests
     test_async_logger.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/log/async_logger.cc
+)
+
+add_component_test(kv_tests
+    test_skiplist.cc
 )
 
 add_component_test(web_server_tests
