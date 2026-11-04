@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 
+#include "aof/aof.h"
 #include "command/command_handler.h"
 #include "net/tcp_server.h"
 #include "store/kv_store.h"
@@ -13,7 +14,7 @@
 class KvServer {
 public:
     KvServer(std::string ip, uint16_t port, std::size_t workers = 4,
-             int idle_timeout_seconds = 60);
+             int idle_timeout_seconds = 60, std::string aof_path = "");
     ~KvServer();
 
     KvServer(const KvServer&) = delete;
@@ -30,5 +31,8 @@ private:
 
     KvStore store_;
     CommandHandler handler_;
-    TcpServer server_;  // 最后声明，最先析构；析构时先 join worker
+    Aof aof_;
+    std::string aof_path_;
+    // 最后声明，最先析构；先 join worker，再停 AOF，避免 worker 写已关闭的文件。
+    TcpServer server_;
 };

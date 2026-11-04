@@ -16,7 +16,7 @@ namespace {
 
 void PrintUsage() {
     std::cerr << "usage: kv_store [--host IP] [--port N] [--threads N]"
-                 " [--timeout SEC]\n";
+                 " [--timeout SEC] [--aof FILE] [--no-aof]\n";
 }
 
 }  // namespace
@@ -26,6 +26,7 @@ int main(int argc, char** argv) {
     std::uint16_t port = 6380;
     std::size_t workers = 4;
     int timeout = 60;
+    std::string aof_path = "data/kv.aof";
 
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
@@ -37,6 +38,10 @@ int main(int argc, char** argv) {
             workers = static_cast<std::size_t>(std::atol(argv[++i]));
         } else if (arg == "--timeout" && i + 1 < argc) {
             timeout = std::atoi(argv[++i]);
+        } else if (arg == "--aof" && i + 1 < argc) {
+            aof_path = argv[++i];
+        } else if (arg == "--no-aof") {
+            aof_path.clear();
         } else {
             PrintUsage();
             return 1;
@@ -62,13 +67,16 @@ int main(int argc, char** argv) {
 
     std::thread signal_thread;
     try {
-        auto server = std::make_shared<KvServer>(host, port, workers, timeout);
+        auto server = std::make_shared<KvServer>(host, port, workers, timeout,
+                                                 aof_path);
         std::cout << "kv_store listening on " << host << ":" << server->Port()
                   << " threads=" << workers << " timeout=" << timeout << "s"
+                  << " aof="
+                  << (aof_path.empty() ? std::string("off") : aof_path)
                   << std::endl;
-        LOG_INFO("kv_store listening on %s:%u threads=%zu timeout=%ds",
+        LOG_INFO("kv_store listening on %s:%u threads=%zu timeout=%ds aof=%s",
                  host.c_str(), static_cast<unsigned>(server->Port()), workers,
-                 timeout);
+                 timeout, aof_path.empty() ? "off" : aof_path.c_str());
 
         signal_thread = std::thread([server, signals]() mutable {
             int sig = 0;

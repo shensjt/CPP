@@ -15,6 +15,7 @@ projects/web_server/www/
 # 个人编辑器配置
 .vscode/
 
-# 运行日志
+# 运行日志 / 本地数据
 logs/
 *.log
+data/
