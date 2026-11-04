@@ -10,20 +10,45 @@
 #include <atomic>
 #include <cerrno>
 #include <cstddef>
+#include <filesystem>
+#include <fstream>
 #include <set>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "test_framework.h"
 
+namespace fs = std::filesystem;
+
 namespace {
 
+struct TempDir {
+    fs::path path;
+
+    TempDir() {
+        path = fs::temp_directory_path() /
+               ("sjt_kv_server_" +
+                std::to_string(static_cast<long>(::getpid())));
+        std::error_code ec;
+        fs::remove_all(path, ec);
+        fs::create_directories(path);
+    }
+
+    ~TempDir() {
+        std::error_code ec;
+        fs::remove_all(path, ec);
+    }
+};
+
 struct ServerGuard {
-    KvServer server{"127.0.0.1", 0, 4};
+    KvServer server;
     std::thread thread;
 
-    ServerGuard() : thread([this] { server.Start(); }) {}
+    explicit ServerGuard(std::string aof_path = "")
+        : server("127.0.0.1", 0, 4, 60, std::move(aof_path)),
+          thread([this] { server.Start(); }) {}
 
     ~ServerGuard() {
         server.Stop();
@@ -278,4 +303,69 @@ TEST(KvServer_ConcurrentClients) {
         members.insert(value);
     }
     CHECK_EQ(members.size(), static_cast<std::size_t>(kClients * kPerClient));
+}
+
+// KV8：写入 AOF 后重启，数据恢复。
+TEST(KvServer_AofRecovery) {
+    TempDir dir;
+    const std::string aof = (dir.path / "kv.aof").string();
+
+    {
+        ServerGuard guard(aof);
+        Client client;
+        CHECK(client.Connect(guard.server.Port()));
+        CHECK(Expect(client, kSetKHello, "+OK\r\n"));
+        CHECK(Expect(client,
+                     "*4\r\n$4\r\nZADD\r\n$1\r\nz\r\n$1\r\n1\r\n$1\r\na\r\n",
+                     ":1\r\n"));
+    }
+
+    {
+        ServerGuard guard(aof);
+        Client client;
+        CHECK(client.Connect(guard.server.Port()));
+        CHECK(Expect(client, kGetK, "$5\r\nhello\r\n"));
+        CHECK(Expect(client,
+                     "*4\r\n$6\r\nZRANGE\r\n$1\r\nz\r\n$1\r\n0\r\n$2\r\n-1\r\n",
+                     "*1\r\n$1\r\na\r\n"));
+    }
+}
+
+// KV9：AOF 尾部有半条命令时，重启应截断尾部，之后的写入仍能恢复。
+TEST(KvServer_AofTruncatedTail) {
+    TempDir dir;
+    const std::string aof = (dir.path / "kv.aof").string();
+
+    {
+        ServerGuard guard(aof);
+        Client client;
+        CHECK(client.Connect(guard.server.Port()));
+        CHECK(Expect(client,
+                     "*3\r\n$3\r\nSET\r\n$1\r\na\r\n$1\r\n1\r\n", "+OK\r\n"));
+    }
+
+    {
+        std::ofstream out(aof, std::ios::binary | std::ios::app);
+        out << "*3\r\n$3\r\nSET\r\n$1\r\nb";
+    }
+
+    {
+        ServerGuard guard(aof);
+        Client client;
+        CHECK(client.Connect(guard.server.Port()));
+        CHECK(Expect(client, "*2\r\n$3\r\nGET\r\n$1\r\na\r\n",
+                     "$1\r\n1\r\n"));
+        CHECK(Expect(client,
+                     "*3\r\n$3\r\nSET\r\n$1\r\nb\r\n$1\r\n2\r\n", "+OK\r\n"));
+    }
+
+    {
+        ServerGuard guard(aof);
+        Client client;
+        CHECK(client.Connect(guard.server.Port()));
+        CHECK(Expect(client, "*2\r\n$3\r\nGET\r\n$1\r\nb\r\n",
+                     "$1\r\n2\r\n"));
+        CHECK(Expect(client, "*2\r\n$3\r\nGET\r\n$1\r\na\r\n",
+                     "$1\r\n1\r\n"));
+    }
 }
