@@ -50,6 +50,10 @@ add_executable(kv_store projects/kv_store/main.cpp)
 target_link_libraries(kv_store PRIVATE kv log)
 target_compile_options(kv_store PRIVATE -Wall -Wextra -Wpedantic)
 
+add_executable(bench_kv projects/kv_store/bench/bench_kv.cc)
+target_link_libraries(bench_kv PRIVATE kv)
+target_compile_options(bench_kv PRIVATE -Wall -Wextra -Wpedantic)
+
 add_executable(web_server projects/web_server/main.cpp)
 target_link_libraries(web_server PRIVATE http)
 target_compile_options(web_server PRIVATE -Wall -Wextra -Wpedantic)
