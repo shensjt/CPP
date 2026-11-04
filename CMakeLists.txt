@@ -34,6 +34,16 @@ target_include_directories(http PUBLIC projects/web_server)
 target_link_libraries(http PUBLIC net log)
 target_compile_options(http PRIVATE -Wall -Wextra -Wpedantic)
 
+add_library(kv STATIC
+    projects/kv_store/protocol/resp.cc
+    projects/kv_store/store/zset.cc
+    projects/kv_store/store/kv_store.cc
+    projects/kv_store/command/command_handler.cc
+)
+target_include_directories(kv PUBLIC projects/kv_store common)
+target_link_libraries(kv PUBLIC net)
+target_compile_options(kv PRIVATE -Wall -Wextra -Wpedantic)
+
 add_executable(web_server projects/web_server/main.cpp)
 target_link_libraries(web_server PRIVATE http)
 target_compile_options(web_server PRIVATE -Wall -Wextra -Wpedantic)
