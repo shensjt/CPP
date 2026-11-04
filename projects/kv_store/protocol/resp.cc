@@ -177,4 +177,12 @@ std::string ArrayHeader(std::size_t count) {
     return "*" + std::to_string(count) + "\r\n";
 }
 
+std::string EncodeCommand(const std::vector<std::string>& args) {
+    std::string out = ArrayHeader(args.size());
+    for (const auto& arg : args) {
+        out += BulkString(arg);
+    }
+    return out;
+}
+
 }  // namespace resp

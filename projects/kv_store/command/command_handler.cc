@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "protocol/resp.h"
+#include "store/score_format.h"
 
 namespace {
 
@@ -78,13 +79,6 @@ bool ParseBound(std::string_view text, double& value, bool& exclusive) {
         return true;
     }
     return ParseDouble(text, value);
-}
-
-std::string FormatDouble(double value) {
-    char buffer[64];
-    const int written = std::snprintf(buffer, sizeof(buffer), "%.17g", value);
-    return written > 0 ? std::string(buffer, static_cast<std::size_t>(written))
-                       : std::string();
 }
 
 std::string WrongArity(const std::string& command) {
@@ -205,7 +199,7 @@ std::string CommandHandler::Execute(const std::vector<std::string>& args) {
         double score = 0.0;
         const auto status = store_.ZScore(args[1], args[2], &score);
         if (status == KvStore::Status::kOk) {
-            return resp::BulkString(FormatDouble(score));
+            return resp::BulkString(FormatScore(score));
         }
         if (status == KvStore::Status::kNotFound) {
             return resp::NullBulkString();

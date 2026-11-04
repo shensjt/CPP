@@ -48,4 +48,7 @@ std::string BulkString(std::string_view data);
 std::string NullBulkString();
 std::string ArrayHeader(std::size_t count);
 
+// 把一组参数编码成 RESP 数组，AOF 追加和测试都用它。
+std::string EncodeCommand(const std::vector<std::string>& args);
+
 }  // namespace resp
