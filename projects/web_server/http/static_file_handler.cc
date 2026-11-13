@@ -35,6 +35,8 @@ bool HexValue(char c, int& value) {
     return false;
 }
 
+// 解码 %XX；非法编码或解码后出现 NUL 都返回 nullopt。
+// NUL 会被文件系统当成字符串结束，可能绕过后续的路径检查。
 std::optional<std::string> UrlDecode(const std::string& input) {
     std::string output;
     output.reserve(input.size());
@@ -59,6 +61,8 @@ std::optional<std::string> UrlDecode(const std::string& input) {
     return output;
 }
 
+// 按路径组件逐段比较，而不是字符串前缀：
+// /www 和 /www-evil 有共同前缀，但不是同一棵目录树。
 bool IsInside(const fs::path& root, const fs::path& candidate) {
     auto root_it = root.begin();
     auto candidate_it = candidate.begin();
@@ -70,6 +74,7 @@ bool IsInside(const fs::path& root, const fs::path& candidate) {
     return true;
 }
 
+// 只覆盖博客用到的类型；未知扩展名回退 application/octet-stream。
 std::string MimeType(const std::string& extension) {
     const std::string ext = ToLower(extension);
     if (ext == ".html" || ext == ".htm") return "text/html; charset=utf-8";
@@ -103,6 +108,8 @@ bool ReadFile(const fs::path& path, std::string& out) {
 
 }  // namespace
 
+// 启动时就把 document root 规范化成绝对路径；
+// 之后所有请求都相对这个 root 检查，不依赖进程当前工作目录。
 StaticFileHandler::StaticFileHandler(std::string root, std::size_t cache_bytes)
     : root_(fs::weakly_canonical(fs::path(std::move(root)))),
       cache_(cache_bytes) {
@@ -112,6 +119,8 @@ StaticFileHandler::StaticFileHandler(std::string root, std::size_t cache_bytes)
     }
 }
 
+// 处理顺序很重要：先解码，再规范化，最后做 root 内检查。
+// 如果先检查再解码，%2e%2e 这类编码可以绕过。
 HttpResponse StaticFileHandler::Handle(const HttpRequest& request) const {
     if (request.method != HttpRequest::Method::kGet &&
         request.method != HttpRequest::Method::kHead) {
@@ -120,11 +129,14 @@ HttpResponse StaticFileHandler::Handle(const HttpRequest& request) const {
         return response;
     }
 
+    // 1. URL 解码；非法编码/NUL 直接 400。
     const auto decoded = UrlDecode(request.Path());
     if (!decoded || decoded->empty() || decoded->front() != '/') {
         return MakeError(400, "400 Bad Request\n");
     }
 
+    // 2. 拼接并规范化；weakly_canonical 会消掉 .. 和符号链接。
+    // 3. 检查结果仍在 root_ 内，否则 403。
     std::error_code ec;
     const std::string relative = decoded->substr(1);
     fs::path candidate = fs::weakly_canonical(root_ / fs::path(relative), ec);
@@ -132,6 +144,7 @@ HttpResponse StaticFileHandler::Handle(const HttpRequest& request) const {
         return MakeError(403, "403 Forbidden\n");
     }
 
+    // 4. 目录补 index.html；再确认是普通文件。
     if (fs::is_directory(candidate, ec)) {
         candidate /= "index.html";
     }
@@ -139,6 +152,8 @@ HttpResponse StaticFileHandler::Handle(const HttpRequest& request) const {
         return MakeError(404, "404 Not Found\n");
     }
 
+    // 5. 先查 LRU；未命中读文件并回填。
+    // key 用规范化后的绝对路径，避免不同 URL 写法重复缓存同一文件。
     const std::string key = candidate.string();
     std::string body;
     if (!cache_.Get(key, body)) {

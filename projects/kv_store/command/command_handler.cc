@@ -101,6 +101,9 @@ std::string ArrayOfBulk(const std::vector<std::string>& values) {
 
 }  // namespace
 
+// 命令分发：先做参数个数/格式校验，再调 KvStore，最后编码 RESP。
+// 参数错误返回 -ERR，类型冲突返回 -WRONGTYPE，缺失 key 按命令语义返回
+// null bulk 或空数组。
 std::string CommandHandler::Execute(const std::vector<std::string>& args) {
     if (args.empty()) {
         return resp::Error("ERR empty command");
@@ -174,6 +177,8 @@ std::string CommandHandler::Execute(const std::vector<std::string>& args) {
         if (args.size() < 4 || (args.size() - 2) % 2 != 0) {
             return WrongArity(command);
         }
+        // 先把所有 score 解析完，再统一写入：
+        // 如果后面的 score 非法，前面的 member 也不应该被加进去。
         std::vector<std::pair<double, std::string>> items;
         items.reserve((args.size() - 2) / 2);
         for (std::size_t i = 2; i < args.size(); i += 2) {

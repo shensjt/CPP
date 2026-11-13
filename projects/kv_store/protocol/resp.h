@@ -10,7 +10,14 @@
 // 简化版 RESP：
 //   请求：*N\r\n$len\r\narg\r\n...，也支持 nc 用的 inline 命令
 //   响应：+OK / -ERR / :int / $len / *N
-// 解析器不保存跨连接状态：半包时不动 Buffer，下次从同一位置继续。
+//
+// 解析器不保存跨连接状态：
+// - 只有完整命令才消费 Buffer；
+// - NeedMore 时 Buffer 原封不动，下次从同一位置继续；
+// - Error 时也不消费，由上层关闭连接。
+//
+// 限额用于防攻击：参数个数 1024、单 bulk 64MB、单命令总大小 64MB、
+// inline 行 64KB。超过直接 Error。
 namespace resp {
 
 struct Command {

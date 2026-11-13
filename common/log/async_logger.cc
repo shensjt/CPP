@@ -9,8 +9,12 @@
 #include <unistd.h>
 #include <utility>
 
+// 日志文件的薄封装：追加、滚动、fsync。
+// 只由 AsyncLogger 的后端线程使用，所以内部不加锁。
 class LogFile {
 public:
+    // 打开/创建文件；父目录不存在时自动创建。
+    // 如果文件已存在，written_ 从当前大小开始，滚动阈值按累计大小算。
     LogFile(std::string path, std::size_t max_size)
         : path_(std::move(path)), max_size_(max_size) {
         std::error_code ec;
@@ -35,6 +39,8 @@ public:
     LogFile(const LogFile&) = delete;
     LogFile& operator=(const LogFile&) = delete;
 
+    // 按 chunk 写：一整块 4MB 数据不能一次性 fwrite，否则永远不会触发滚动。
+    // 每块写到 max_size_ 边界就 Roll，换新文件继续写剩余部分。
     void Append(const char* data, std::size_t len) {
         if (file_ == nullptr) return;
         while (len > 0) {
@@ -98,6 +104,8 @@ AsyncLogger::~AsyncLogger() {
     Stop();
 }
 
+// 启动后端线程；重复 Start 直接忽略。
+// 文件打开失败会抛异常，由调用方决定是否回退 stderr。
 void AsyncLogger::Start(const std::string& path, std::size_t max_file_size,
                         int flush_interval_ms) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -112,6 +120,8 @@ void AsyncLogger::Start(const std::string& path, std::size_t max_file_size,
     thread_ = std::thread([this] { Backend(); });
 }
 
+// 停止：把 running_ 置 false，交出当前缓冲，唤醒后端并 join。
+// join 之后才关闭文件，保证后端线程不会写一个已关闭的 FILE*。
 void AsyncLogger::Stop() {
     std::thread worker;
     {
@@ -121,6 +131,7 @@ void AsyncLogger::Stop() {
             return;
         }
         running_ = false;
+        // 停机时前端可能还有未满的缓冲，必须交给后端一起写完。
         if (current_ != nullptr && !current_->empty()) {
             pending_.push_back(std::move(current_));
         }
@@ -140,6 +151,8 @@ void AsyncLogger::Stop() {
     pending_.clear();
 }
 
+// 前端入口：锁内只做一次字符串 append。
+// 缓冲超过阈值时交换到 pending_ 并唤醒后端，锁持有时间仍然很短。
 bool AsyncLogger::Append(std::string line) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!running_) return false;
@@ -159,6 +172,12 @@ bool AsyncLogger::Append(std::string line) {
     return true;
 }
 
+// 后端循环：
+// 1. 等 pending_ 非空、超时或 Stop；
+// 2. 把 pending_ swap 到本地（锁外写盘，避免前端被磁盘 IO 卡住）；
+// 3. 批量写文件、fflush；
+// 4. 按间隔 fsync；
+// 5. Stop 时把剩余数据写完再退出。
 void AsyncLogger::Backend() {
     std::vector<std::unique_ptr<Buffer>> local;
     auto last_fsync = std::chrono::steady_clock::now();
@@ -176,7 +195,8 @@ void AsyncLogger::Backend() {
                 }
                 stopping = true;
             } else if (current_ != nullptr && !current_->empty()) {
-                // 即使没写满，也按 flush 间隔把当前缓冲交给后端。
+                // 即使没写满，也按 flush 间隔把当前缓冲交给后端，
+                // 否则低流量时日志会一直留在内存里，运行期间看不到。
                 pending_.push_back(std::move(current_));
                 if (next_ != nullptr) {
                     current_ = std::move(next_);
@@ -189,6 +209,7 @@ void AsyncLogger::Backend() {
             local.swap(pending_);
         }
 
+        // 锁外写盘：这一步可能慢，不能占着 mutex_。
         for (auto& buffer : local) {
             if (buffer != nullptr && !buffer->empty()) {
                 file_->Append(buffer->data(), buffer->size());

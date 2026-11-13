@@ -11,6 +11,8 @@
 #include "protocol/resp.h"
 #include "store/score_format.h"
 
+// 写路径：持写锁完成“改内存 + 追加 AOF”。
+// 注意先编码再 move：如果先 std::move(value) 进 map，AOF 里会写成空串。
 KvStore::Status KvStore::Set(const std::string& key, std::string value) {
     std::unique_lock<std::shared_mutex> lock(mutex_);
     const auto it = data_.find(key);
@@ -77,6 +79,8 @@ KvStore::Status KvStore::ZAdd(
         return status;
     }
 
+    // 整批 ZADD 在同一把写锁内完成：别的客户端看不到“只加了一半”的中间状态。
+    // changed 表示至少有一项新增或改分，决定是否需要写 AOF。
     std::size_t count = 0;
     bool changed = false;
     for (const auto& item : items) {

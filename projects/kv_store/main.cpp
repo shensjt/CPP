@@ -49,6 +49,8 @@ int main(int argc, char** argv) {
     }
 
     // 先屏蔽信号，再创建日志/worker 线程，让它们继承同一份阻塞集合。
+    // 这样 SIGINT/SIGTERM 只会被下面的 sigwait 线程取走，
+    // 不会在 worker 线程里以默认行为直接杀进程。
     sigset_t signals;
     sigemptyset(&signals);
     sigaddset(&signals, SIGINT);
@@ -78,6 +80,8 @@ int main(int argc, char** argv) {
                  host.c_str(), static_cast<unsigned>(server->Port()), workers,
                  timeout, aof_path.empty() ? "off" : aof_path.c_str());
 
+        // 专用信号线程：只做 sigwait + Stop，不在 signal handler 里做重活。
+        // Start() 返回说明 Stop 已被调用，所以后面 join 不会卡住。
         signal_thread = std::thread([server, signals]() mutable {
             int sig = 0;
             if (sigwait(&signals, &sig) == 0) {

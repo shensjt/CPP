@@ -35,6 +35,11 @@ void KvServer::Start() {
 
 void KvServer::Stop() { server_.Stop(); }
 
+// 一个连接可读时进入：循环解析 Buffer 里的完整命令，支持流水线。
+// - NeedMore：半条命令，直接返回，Buffer 原封不动；
+// - Error：协议错误，发错误并关闭（剩余字节已不可信）；
+// - Complete：执行并写回，继续解析下一条。
+// RESP 解析器无状态，所以这里用局部变量即可，不需要 per-connection map。
 void KvServer::OnMessage(TcpConnection& conn) {
     resp::Parser parser;
     resp::Command command;
