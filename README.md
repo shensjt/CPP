@@ -1,5 +1,7 @@
 # SJT C++ Projects
 
+[![ci](https://github.com/shensjt/CPP/actions/workflows/ci.yml/badge.svg?branch=fast-track)](https://github.com/shensjt/CPP/actions/workflows/ci.yml)
+
 两个共享同一套基础设施的 C++17 项目：
 
 - **SJTWebServer**：epoll + 线程池的高并发静态 Web 服务器，博客站点线上运行
