@@ -3,7 +3,9 @@
 | 项 | 值 |
 |---|---|
 | 日期 | 2026-11-18 |
-| 状态 | 已修复，待合并 |
+| 状态 | 已修复，已合并 |
+| 合并 | PR #3 / `b09cb08` |
+| 合并日期 | 2026-11-18 |
 | 严重级别 | 中（核心路径潜在数据竞争，未观测到线上故障） |
 | 影响范围 | `common/net/tcp_server.cc`、`common/net/tcp_connection.h` |
 | 首次引入 | `v0.1-demo` |
@@ -151,3 +153,8 @@ HandleEvents → SetInFlight(false) → Rearm
 - 代码：`common/net/tcp_server.cc`、`common/net/tcp_connection.h`
 - 后续同类问题：[INC-2026-11-18-02 fd 复用导致的 HttpParser UAF](2026-11-18-fd-reuse-parser-uaf.md)
 - 发布记录：[v0.1-demo](../releases/v0.1-demo.md)
+
+## 更新记录
+
+- 2026-11-18：修复合并到 `fast-track`（PR #3，commit `b09cb08`）。
+- 2026-11-18：合并后的 CI 暴露 fd 复用问题，见 INC-2026-11-18-02。

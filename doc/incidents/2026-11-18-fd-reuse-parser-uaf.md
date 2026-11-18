@@ -3,7 +3,9 @@
 | 项 | 值 |
 |---|---|
 | 日期 | 2026-11-18 |
-| 状态 | 已修复，待合并 |
+| 状态 | 已修复，已合并 |
+| 合并 | PR #4 / `d6b6bfa` |
+| 合并日期 | 2026-11-18 |
 | 严重级别 | 高（use-after-free / 堆损坏） |
 | 影响范围 | `common/net/tcp_server.cc`、`common/net/tcp_connection.*`、`projects/web_server/http/http_server.cc` |
 | 首次引入 | `v0.1-demo` |
@@ -133,3 +135,7 @@ CloseConnection(fd)
 - 代码：`common/net/tcp_server.cc`、`common/net/tcp_connection.h`、`common/net/tcp_connection.cc`
 - 测试：`tests/test_http_server.cc`
 - 发布记录：[v0.1-demo](../releases/v0.1-demo.md)
+
+## 更新记录
+
+- 2026-11-18：修复合并到 `fast-track`（PR #4，commit `d6b6bfa`）；随后 `fast-track` push CI 通过。
