@@ -1,6 +1,6 @@
 # 博客构建
 
-仓库只带 `blog/demo/` 里的演示内容；你自己的文章放本地 `docs/blog/`。构建后生成静态站到 `projects/web_server/www/`。服务器只负责发文件，不需要 Python。
+仓库只带 `blog/demo/` 里的演示内容；你自己的文章放本地 `docs/blog/`。构建后生成静态站到 `build/www/`。服务器只负责发文件，不需要 Python。
 
 自己的真实文章不要放进公开仓库，放在本地 `docs/blog/`（已被 gitignore），构建时用 `--content docs/blog`。内容目录结构：
 
@@ -93,13 +93,13 @@ python3 blog/scripts/build.py --content docs/blog
 输出：
 
 ```text
-built N posts from ... into .../projects/web_server/www
+built N posts from ... into .../build/www
 ```
 
 ## 本地预览
 
 ```bash
-python3 -m http.server -d projects/web_server/www 8000
+python3 -m http.server -d build/www 8000
 # http://127.0.0.1:8000/
 ```
 
@@ -107,13 +107,13 @@ python3 -m http.server -d projects/web_server/www 8000
 
 ```bash
 ./build/server/web_server --host 127.0.0.1 --port 8080 \
-  --root projects/web_server/www --threads 4 --timeout 60
+  --root build/www --threads 4 --timeout 60
 ```
 
 ## 发布
 
 ```bash
-rsync -avz --delete projects/web_server/www/ \
+rsync -avz --delete build/www/ \
   root@<ECS公网IP>:/opt/sjtwebserver/www/
 ```
 
@@ -121,7 +121,7 @@ rsync -avz --delete projects/web_server/www/ \
 
 ## 注意
 
-- `build.py` 会清空并重建 `www/`，不要手改生成后的 HTML。
+- `build.py` 会清空并重建 `build/www/`，不要手改生成后的 HTML。
 - `draft: true` 的文章不会生成。
-- `www/` 已加入 `.gitignore`，只提交源码和模板。
+- `build/www/` 在 `build/` 下，已被 `.gitignore` 忽略，只提交源码和模板。
 - 真实文章放在 `docs/blog/`，不要提交；仓库里只保留一篇演示文章。

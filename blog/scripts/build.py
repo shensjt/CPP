@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the static blog from Markdown into projects/web_server/www."""
+"""Build the static blog from Markdown into build/www."""
 
 import argparse
 import html
@@ -353,7 +353,7 @@ def main():
     parser.add_argument(
         "--out",
         type=Path,
-        default=ROOT / "projects" / "web_server" / "www",
+        default=ROOT / "build" / "www",
         help="output directory",
     )
     parser.add_argument(

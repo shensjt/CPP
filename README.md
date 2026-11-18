@@ -54,7 +54,7 @@ TcpServer
 - `v0.1-demo`：Web Server 可演示快照
 - `v0.2-kv`：KV Store（跳表 + RESP + 读写锁 + AOF）
 
-仓库只保存源码、模板、测试、部署配置和一篇演示文章；`www/` 是构建产物，不入库。
+仓库只保存源码、模板、测试、部署配置和一篇演示文章；`build/www/` 是构建产物，不入库。
 
 ## 环境要求
 
@@ -89,7 +89,7 @@ cmake --build build/server -j
 
 # 3. 运行
 ./build/server/web_server --host 127.0.0.1 --port 8080 \
-  --root projects/web_server/www --threads 4 --timeout 60
+  --root build/www --threads 4 --timeout 60
 ```
 
 打开 `http://127.0.0.1:8080/`，首页会显示仓库自带的示例文章。
@@ -110,7 +110,7 @@ python3 blog/scripts/build.py --content docs/blog
 make blog-local
 ```
 
-`projects/web_server/www/` 是构建产物，不入库。干净 clone 后必须先跑 `build.py`，否则服务器没有可发的内容。
+`build/www/` 是构建产物，不入库。干净 clone 后必须先跑 `build.py`，否则服务器没有可发的内容。
 
 ## 博客构建链路
 
@@ -122,9 +122,9 @@ docs/blog/posts/**/*.md     本地真实内容（gitignore）
         │   解析 front matter → Markdown 转 HTML
         │   套 post.html → base.html
         ▼
-projects/web_server/www/    首页/栏目页/文章页/CSS（构建产物，不入库）
+build/www/    首页/栏目页/文章页/CSS（构建产物，不入库）
         │
-        │ web_server --root projects/web_server/www
+        │ web_server --root build/www
         ▼
 浏览器
 ```
@@ -132,10 +132,10 @@ projects/web_server/www/    首页/栏目页/文章页/CSS（构建产物，不�
 - 演示内容：`blog/demo/posts/**/*.md`、`blog/demo/about.md`
 - 个人内容：`docs/blog/`（本地，gitignore）
 - 模板：`blog/templates/`
-- 输出：`projects/web_server/www/`
+- 输出：`build/www/`
 - 构建依赖：[blog/requirements.txt](blog/requirements.txt)
 - 详细说明：[blog/README.md](blog/README.md)
-- 部署：`rsync -avz --delete projects/web_server/www/ user@host:/opt/sjtwebserver/www/`
+- 部署：`rsync -avz --delete build/www/ user@host:/opt/sjtwebserver/www/`
 
 > 仓库里只有一篇演示文章；真实文章放本地 `docs/blog/`，用 `--content docs/blog` 构建，不会进公开仓库。
 
@@ -294,7 +294,6 @@ common/
 projects/web_server/
   http/            HttpParser / HttpResponse / StaticFileHandler / HttpServer
   lru_cache/       LRU
-  www/             生成的静态站点
 projects/kv_store/
   skiplist/        跳表（有序集合）
   store/           KVStore / ZSet / 分数格式
@@ -306,6 +305,9 @@ projects/kv_store/
 blog/              博客源文件、模板、构建脚本
 tests/             单元/集成测试
 deploy/            Caddyfile、systemd、部署脚本
+build/             构建产物（不入库）
+  server/          可执行文件
+  www/             生成的静态站点
 ```
 
 ## 已知限制

@@ -23,7 +23,7 @@ void PrintUsage() {
 int main(int argc, char** argv) {
     std::string host = "127.0.0.1";
     std::uint16_t port = 8080;
-    std::string root = "projects/web_server/www";
+    std::string root = "build/www";
     std::size_t workers = 4;
     int timeout = 60;
 

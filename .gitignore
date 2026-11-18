@@ -9,7 +9,7 @@ a.out
 *.gch
 build/
 
-# 博客构建产物
+# 旧的博客构建产物（已迁移到 build/www，保留规则防止误提交）
 projects/web_server/www/
 
 # 个人编辑器配置
