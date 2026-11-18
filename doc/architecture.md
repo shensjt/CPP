@@ -44,7 +44,7 @@ web_server 容器（0.0.0.0:8080）
 | `projects/kv_store/command/` | 命令分发与参数校验 |
 | `projects/kv_store/aof/` | AOF 追加、fsync、回放、尾部修复 |
 | `projects/kv_store/server/` | `KvServer` 接入网络层 |
-| `tests/` | 6 个测试可执行文件、191 个用例 |
+| `tests/` | 6 个测试可执行文件、193 个用例 |
 | `blog/` | Markdown → HTML 构建 |
 | `deploy/` | 旧 systemd 部署脚本，当前停用 |
 

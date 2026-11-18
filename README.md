@@ -174,7 +174,7 @@ cmake --build build/tests -j
 ctest --test-dir build/tests --output-on-failure
 ```
 
-当前 6 个测试可执行文件、191 个用例：
+当前 6 个测试可执行文件、193 个用例：
 
 - 线程池 / 阻塞队列
 - 内存池

@@ -4,6 +4,7 @@
 
 #include <unistd.h>
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -169,8 +170,8 @@ TEST(StaticFile_QueryIgnored) {
     CHECK_EQ(response.Body(), std::string("home"));
 }
 
-// SF12：文件内容会进 LRU，更新文件后需要重启/清缓存才能看到新内容。
-TEST(StaticFile_CacheHit) {
+// SF12：文件内容更新后，缓存应失效。
+TEST(StaticFile_CacheInvalidatedOnContentChange) {
     TempDir dir;
     dir.Write("index.html", "old-content");
 
@@ -180,7 +181,43 @@ TEST(StaticFile_CacheHit) {
 
     dir.Write("index.html", "new-content");
     CHECK_EQ(handler.Handle(MakeRequest("/index.html")).Body(),
-             std::string("old-content"));
+             std::string("new-content"));
+}
+
+// SF14：大小不变、只推进 mtime，缓存也应失效。
+TEST(StaticFile_CacheInvalidatedOnMtimeChange) {
+    TempDir dir;
+    const fs::path file = dir.path / "index.html";
+    dir.Write("index.html", "aaaa");
+
+    StaticFileHandler handler(dir.path.string());
+    CHECK_EQ(handler.Handle(MakeRequest("/index.html")).Body(),
+             std::string("aaaa"));
+
+    std::error_code ec;
+    const auto mtime = fs::last_write_time(file, ec);
+    dir.Write("index.html", "bbbb");
+    fs::last_write_time(file, mtime + std::chrono::seconds(2), ec);
+    CHECK_EQ(handler.Handle(MakeRequest("/index.html")).Body(),
+             std::string("bbbb"));
+}
+
+// SF15：mtime 不变、只改变大小，缓存也应失效。
+TEST(StaticFile_CacheInvalidatedOnSizeChange) {
+    TempDir dir;
+    const fs::path file = dir.path / "index.html";
+    dir.Write("index.html", "old");
+
+    StaticFileHandler handler(dir.path.string());
+    CHECK_EQ(handler.Handle(MakeRequest("/index.html")).Body(),
+             std::string("old"));
+
+    std::error_code ec;
+    const auto mtime = fs::last_write_time(file, ec);
+    dir.Write("index.html", "new-longer");
+    fs::last_write_time(file, mtime, ec);
+    CHECK_EQ(handler.Handle(MakeRequest("/index.html")).Body(),
+             std::string("new-longer"));
 }
 
 // SF13：指向 document root 外的符号链接被拦截。
