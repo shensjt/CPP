@@ -1,12 +1,17 @@
 #include "http/http_server.h"
 #include "log/logger.h"
 
+#include <signal.h>
+#include <time.h>
+
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <string>
+#include <thread>
 
 namespace {
 
@@ -21,6 +26,17 @@ void PrintUsage() {
 // - 只监听 127.0.0.1，公网入口由 Caddy 反向代理；
 // - 4 个 worker；60 秒空闲超时。
 int main(int argc, char** argv) {
+    // 先屏蔽信号，保证 Logger/ThreadPool 创建的线程都继承该掩码，
+    // 只由主线程的 sigtimedwait 消费，避免信号打断任意 worker。
+    sigset_t stop_signals;
+    sigemptyset(&stop_signals);
+    sigaddset(&stop_signals, SIGINT);
+    sigaddset(&stop_signals, SIGTERM);
+    if (sigprocmask(SIG_BLOCK, &stop_signals, nullptr) != 0) {
+        std::cerr << "sigprocmask failed" << std::endl;
+        return 1;
+    }
+
     std::string host = "127.0.0.1";
     std::uint16_t port = 8080;
     std::string root = "build/www";
@@ -61,9 +77,33 @@ int main(int argc, char** argv) {
         LOG_INFO("server listening on %s:%u root=%s threads=%zu timeout=%ds",
                  host.c_str(), static_cast<unsigned>(server.Port()), root.c_str(),
                  workers, timeout);
-        // Start() 阻塞在 epoll 事件循环；当前没有接信号处理，
-        // 生产上由 systemd 发 SIGTERM 终止，属于已知限制。
-        server.Start();
+        // Start() 阻塞在 epoll 事件循环；主线程等 SIGINT/SIGTERM，
+        // 收到后 Stop()，等 Start 返回、worker join，再退出。
+        std::atomic<bool> done{false};
+        std::exception_ptr server_error;
+        std::thread server_thread([&] {
+            try {
+                server.Start();
+            } catch (...) {
+                server_error = std::current_exception();
+            }
+            done.store(true, std::memory_order_release);
+        });
+
+        while (!done.load(std::memory_order_acquire)) {
+            timespec wait{0, 100 * 1000 * 1000};
+            const int sig = ::sigtimedwait(&stop_signals, nullptr, &wait);
+            if (sig == SIGINT || sig == SIGTERM) {
+                LOG_INFO("received signal %d, stopping", sig);
+                server.Stop();
+                break;
+            }
+        }
+
+        server_thread.join();
+        if (server_error) {
+            std::rethrow_exception(server_error);
+        }
     } catch (const std::exception& e) {
         LOG_ERROR("server error: %s", e.what());
         std::cerr << "server error: " << e.what() << std::endl;
