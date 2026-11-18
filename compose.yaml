@@ -1,0 +1,11 @@
+services:
+  web:
+    build:
+      context: .
+      args:
+        APT_MIRROR: ${APT_MIRROR:-archive.ubuntu.com}
+    image: sjtwebserver:dev
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+    init: true
