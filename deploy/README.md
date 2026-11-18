@@ -45,7 +45,7 @@ sudo bash deploy/setup.sh
 - 创建 `webserver` 用户（如果不存在）
 - 写 `/etc/systemd/system/sjtwebserver.service`
 - `enable --now`，开机自启、崩溃自动重启
-- 默认 `0.0.0.0:8080`，doc root 是仓库里的 `projects/web_server/www`
+- 默认 `0.0.0.0:8080`，doc root 是仓库里的 `build/www`
 - 检查端口占用、二进制和静态站是否存在
 
 可选参数：

@@ -19,7 +19,7 @@ TIMEOUT=${TIMEOUT:-60}
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ROOT_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
 BIN="${ROOT_DIR}/build/server/web_server"
-WWW="${ROOT_DIR}/projects/web_server/www"
+WWW="${ROOT_DIR}/build/www"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "请用 root 运行：sudo bash deploy/setup.sh" >&2

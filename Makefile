@@ -6,10 +6,10 @@ deps:
 	$(PYTHON) -m pip install -r blog/requirements.txt
 
 blog:
-	$(PYTHON) blog/scripts/build.py
+	$(PYTHON) blog/scripts/build.py --content blog/demo --out build/www
 
 blog-local:
-	$(PYTHON) blog/scripts/build.py --content docs/blog
+	$(PYTHON) blog/scripts/build.py --content docs/blog --out build/www
 
 server:
 	cmake -S . -B build/server -DCMAKE_BUILD_TYPE=Release
@@ -39,11 +39,11 @@ verify:
 
 run: blog server
 	./build/server/web_server --host 127.0.0.1 --port 8080 \
-		--root projects/web_server/www --threads 4 --timeout 60
+		--root build/www --threads 4 --timeout 60
 
 run-local: blog-local server
 	./build/server/web_server --host 127.0.0.1 --port 8080 \
-		--root projects/web_server/www --threads 4 --timeout 60
+		--root build/www --threads 4 --timeout 60
 
 run-kv: kv
 	./build/server/kv_store --host 127.0.0.1 --port 6380 --threads 4
