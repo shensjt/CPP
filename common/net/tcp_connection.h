@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <mutex>
@@ -83,6 +84,10 @@ public:
     std::int64_t IdleForMs(std::int64_t now_ms) const;
 
 private:
+    // 慢客户端保护：超过上限直接关闭连接，避免内存无界增长。
+    static constexpr std::size_t kMaxReadBuffer = 2 * 1024 * 1024;
+    static constexpr std::size_t kMaxWriteBuffer = 8 * 1024 * 1024;
+
     void Flush();
     void UpdateInterest();
 

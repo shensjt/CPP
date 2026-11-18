@@ -16,13 +16,19 @@
 ## Web Server · 功能
 
 - 线程池 + 阻塞队列，任务投递与优雅停机
+- SIGTERM 优雅停机：停止 accept、等待 worker 退出、刷新日志
 - epoll 事件循环，非阻塞 IO，`EPOLLONESHOT` 下 worker 拥有连接
 - 分段 Buffer，`readv` 读取，处理半包/粘包
 - HTTP/1.1 请求解析：请求行、Headers、Body 状态机
-- 静态文件服务：MIME、目录 index、HEAD、404/403/405/400
+- 静态文件服务：MIME、目录 index、HEAD、404/403/405/400/413
 - keep-alive 与流水线，`CloseAfterWrite` 保证响应发完再关
-- LRU 文件缓存（默认 16MB）
-- 双缓冲异步日志，everysec fsync，按大小滚动
+- LRU 文件缓存（默认 16MB，按 mtime/size 失效）
+- HTTP 缓存协商：ETag / Last-Modified / 304
+- 请求限额：request line 8KB、Headers 32KB、Body 1MB，超限 413
+- 读写缓冲上限：读 2MB / 写 8MB，超限关闭慢连接
+- 双缓冲异步日志，everysec fsync，按大小滚动，保留 5 份
+- 访问日志：method/path/status/bytes/duration
+- `/healthz`：返回 status 和编译期注入的 commit
 - 空闲连接超时，默认 60 秒
 - 路径穿越、URL 编码绕过、符号链接逃逸防护
 
@@ -50,8 +56,10 @@ TcpServer
 
 ## 版本
 
-- `v0.1-demo`：Web Server 可演示快照
-- `v0.2-kv`：KV Store（跳表 + RESP + 读写锁 + AOF）
+- [v0.1-demo](doc/releases/v0.1-demo.md)：Web Server 可演示快照
+- [v0.2-kv](doc/releases/v0.2-kv.md)：KV Store（跳表 + RESP + 读写锁 + AOF）
+- [v0.3.0](doc/releases/v0.3.0.md)：CI/CD 与容器化
+- [v0.4.0](doc/releases/v0.4.0.md)：HTTP 正确性、缓存协商、可观测性、优雅停机
 
 仓库只保存源码、模板、测试、部署配置和一篇演示文章；`build/www/` 是构建产物，不入库。
 
@@ -174,7 +182,7 @@ cmake --build build/tests -j
 ctest --test-dir build/tests --output-on-failure
 ```
 
-当前 6 个测试可执行文件、191 个用例：
+当前 6 个测试可执行文件、206 个用例：
 
 - 线程池 / 阻塞队列
 - 内存池
@@ -360,7 +368,7 @@ Web Server：
 - 没有实现 sendfile，大文件仍走用户态缓冲
 - 内存池尚未接入 Web 服务器，目前作为独立组件
 - 当前没有域名和 TLS，直接 HTTP 8080
-- LRU 缓存没有失效机制，内容更新后需要重启容器
+- 读缓冲 2MB、写缓冲 8MB，超限直接关闭慢连接；没有完整的暂停/恢复背压
 - 没有限流、连接数上限和认证
 
 KV Store：

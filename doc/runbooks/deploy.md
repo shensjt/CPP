@@ -50,6 +50,7 @@ deploy
   → 写入 IMAGE_TAG=sha-<commit>
   → docker compose pull
   → docker compose up -d
+  → curl /healthz，校验 commit
   → curl / 和 /css/style.css
   → 失败：恢复 .env.prev 并 up -d
 ```
@@ -72,9 +73,12 @@ echo "IMAGE_TAG=sha-<commit>" > .env
 docker compose pull
 docker compose up -d
 
+curl -fsS http://127.0.0.1:8080/healthz
 curl -fsS http://127.0.0.1:8080/ >/dev/null
 curl -fsS http://127.0.0.1:8080/css/style.css >/dev/null
 ```
+
+`/healthz` 的 `commit` 应与 `.env` 里 `IMAGE_TAG` 去掉 `sha-` 前缀后的值一致。
 
 ## 验证
 
@@ -82,13 +86,26 @@ curl -fsS http://127.0.0.1:8080/css/style.css >/dev/null
 cd /opt/sjtweb-runtime
 cat .env
 docker compose ps
+curl -s http://127.0.0.1:8080/healthz
 curl -I http://127.0.0.1:8080/
 
 # 外部
 curl --noproxy '*' -I http://39.106.115.254:8080/
 ```
 
-期望 `.env` 里的 `IMAGE_TAG` 与 `docker compose ps` 的 image tag 一致。
+期望：
+
+- `.env` 里的 `IMAGE_TAG` 与 `docker compose ps` 的 image tag 一致；
+- `/healthz` 的 `commit` 与 `IMAGE_TAG` 去掉 `sha-` 后一致。
+
+## 停机
+
+```bash
+cd /opt/sjtweb-runtime
+docker compose stop web
+```
+
+`docker stop` 发送 SIGTERM：服务停止 accept、等待 worker 退出、刷新日志后退出。默认 grace period 内应正常结束。
 
 ## 常见故障
 
@@ -128,7 +145,13 @@ docker compose logs --tail=100
 
 ### 内容更新后页面没变
 
-当前 LRU 缓存没有失效机制。内容更新后需要重启容器：
+LRU 会按 mtime/size 失效，正常情况下内容发布后不需要重启容器。先检查：
+
+- 内容目录是否已更新；
+- 浏览器是否缓存（强制刷新）；
+- 容器挂载路径是否正确。
+
+仍无法解决时再重启：
 
 ```bash
 cd /opt/sjtweb-runtime

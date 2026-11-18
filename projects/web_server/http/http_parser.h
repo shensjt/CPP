@@ -9,7 +9,7 @@
 //
 // 状态机：
 //   kRequestLine -> kHeaders -> kBody（有 Content-Length 时）-> kComplete
-//   任意阶段出错 -> kError
+//   任意阶段出错 -> kError；Body 超过上限 -> kTooLarge
 //
 // 半包约定：
 // - 找不到完整的行 / Body 不够 Content-Length 时返回 kNeedMore；
@@ -19,7 +19,7 @@
 // 解析器是有状态的：同一个连接必须复用同一个实例，不能多个 worker 并发调用。
 class HttpParser {
 public:
-    enum class Result { kNeedMore, kComplete, kError };
+    enum class Result { kNeedMore, kComplete, kError, kTooLarge };
 
     Result Parse(Buffer& buffer, HttpRequest& request);
     void Reset();

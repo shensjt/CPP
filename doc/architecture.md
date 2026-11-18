@@ -44,7 +44,7 @@ web_server 容器（0.0.0.0:8080）
 | `projects/kv_store/command/` | 命令分发与参数校验 |
 | `projects/kv_store/aof/` | AOF 追加、fsync、回放、尾部修复 |
 | `projects/kv_store/server/` | `KvServer` 接入网络层 |
-| `tests/` | 6 个测试可执行文件、191 个用例 |
+| `tests/` | 6 个测试可执行文件、206 个用例 |
 | `blog/` | Markdown → HTML 构建 |
 | `deploy/` | 旧 systemd 部署脚本，当前停用 |
 
@@ -71,7 +71,8 @@ worker
 - `InFlight` 标记连接是否正在处理，空闲扫描据此跳过；
 - 每条连接有一把 `recursive_mutex`，覆盖 `HandleEvents + Rearm` 和关闭路径；
 - 关闭顺序：从连接表移除 → `Close()`（epoll Del，fd 暂存）→ `close_callback_` → `CloseFd()`；
-- 连接表由 `connections_mutex_` 保护，worker 持有 `shared_ptr` 保证生命周期。
+- 连接表由 `connections_mutex_` 保护，worker 持有 `shared_ptr` 保证生命周期；
+- 主线程用 `sigtimedwait` 处理 SIGINT/SIGTERM；`Stop()` 后 Start 返回，worker join，最后刷新日志。
 
 ### KV Store
 
@@ -98,6 +99,10 @@ accept
 
 - 每个连接一个 `HttpParser`，支持 keep-alive 和流水线；
 - 静态文件服务做 URL 解码、路径规范化、root 范围校验；
+- 静态文件响应带 `ETag` / `Last-Modified` / `Cache-Control`，条件请求返回 304；
+- 请求限额：request line 8KB、Headers 32KB、Body 1MB，Body 超限返回 413；
+- `/healthz` 返回 status 和编译期注入的 commit；
+- 访问日志记录 method/path/status/bytes/duration；
 - 响应统一生成 `Content-Length` 和 `Connection`；
 - `CloseAfterWrite` 保证响应发完再关闭。
 
@@ -153,6 +158,14 @@ HTML 构建产物统一放在 `build/`，不写源码树。`make blog` 生成 `b
 
 写路径追加 AOF，后台每秒 fsync。吞吐优于 always，代价是崩溃最多丢约 1 秒数据。
 
+### 5.7 缓存一致性
+
+LRU 缓存项保存 `body + mtime + size`，命中后 `stat` 比对当前文件；不一致按 miss 处理。静态响应带 `ETag` / `Last-Modified` / `Cache-Control`，条件请求返回 304。内容更新后不需要重启容器。
+
+### 5.8 可观测性
+
+编译期通过 `BUILD_COMMIT` 注入 commit；`/healthz` 返回 `status` 和 `commit`；访问日志记录 method/path/status/bytes/duration；日志按大小滚动并保留 5 份。CD smoke 校验 `/healthz` 的 commit，不匹配自动回滚。当前没有 metrics、告警和链路追踪。
+
 ## 6. 已知限制
 
 Web Server：
@@ -161,7 +174,7 @@ Web Server：
 - 没有 sendfile，大文件走用户态缓冲；
 - 没有限流、连接数上限和认证；
 - 内存池未接入 Web Server；
-- LRU 缓存没有失效机制，内容更新后需要重启容器。
+- 读缓冲 2MB、写缓冲 8MB，超限直接关闭连接；没有完整暂停/恢复背压。
 
 KV Store：
 
@@ -173,8 +186,8 @@ KV Store：
 部署：
 
 - 没有域名和 TLS，直接 HTTP 8080；
-- 没有 health / version 端点；
-- CD smoke 只覆盖 `/` 和 `/css/style.css`；
+- 有 `/healthz` 和访问日志，但没有 metrics / 告警 / 链路追踪；
+- CD smoke 检查 `/`、CSS 和 `/healthz` 的 commit；
 - 内容流水线（内容版本、校验、独立发布）尚未实现。
 
 ## 7. 入口

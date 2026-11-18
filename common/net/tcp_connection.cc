@@ -2,6 +2,7 @@
 
 #include <cerrno>
 #include <chrono>
+#include <cstdio>
 #include <fcntl.h>
 #include <system_error>
 #include <sys/socket.h>
@@ -64,6 +65,14 @@ void TcpConnection::Send(const std::string& data) {
     Touch();
     write_buffer_.Append(data);
     Flush();
+
+    if (write_buffer_.ReadableBytes() > kMaxWriteBuffer) {
+        std::fprintf(stderr, "tcp fd=%d write buffer exceeded (%zu bytes)\n",
+                     fd_, write_buffer_.ReadableBytes());
+        Close();
+        return;
+    }
+
     if (!one_shot_) {
         UpdateInterest();
     }
@@ -84,7 +93,16 @@ bool TcpConnection::HandleRead() {
         int saved_errno = 0;
         const ssize_t n = read_buffer_.ReadFd(fd_, &saved_errno);
 
-        if (n > 0) continue;
+        if (n > 0) {
+            if (read_buffer_.ReadableBytes() > kMaxReadBuffer) {
+                std::fprintf(stderr,
+                             "tcp fd=%d read buffer exceeded (%zu bytes)\n",
+                             fd_, read_buffer_.ReadableBytes());
+                Close();
+                return false;
+            }
+            continue;
+        }
         if (n == 0) {
             Close();
             return false;

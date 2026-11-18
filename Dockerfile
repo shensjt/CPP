@@ -1,6 +1,7 @@
 FROM ubuntu:24.04 AS builder
 
 ARG APT_MIRROR=archive.ubuntu.com
+ARG BUILD_COMMIT=dev
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN sed -i \
@@ -16,6 +17,7 @@ WORKDIR /src
 COPY . .
 
 RUN cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_COMMIT="${BUILD_COMMIT}" \
     && cmake --build build/release --target web_server -j"$(nproc)" \
     && python3 blog/scripts/build.py --content blog/demo --out /out/www
 

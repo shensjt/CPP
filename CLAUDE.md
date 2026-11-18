@@ -101,8 +101,8 @@ CD（`.github/workflows/deploy.yml`）：
 
 - 没有域名和 TLS，直接 HTTP 8080。
 - GitHub runner 到 ACR 认证端点偶发 `connection reset`，重跑 deploy job。
-- LRU 缓存没有失效机制，内容更新后需要重启容器。
-- 没有 health / version 端点。
+- 读缓冲 2MB、写缓冲 8MB，超限直接关闭连接；没有完整背压。
+- 访问日志写在本地文件，没有集中日志、metrics 和告警。
 - 内容流水线尚未实现。
 - KV 没有 TTL、淘汰、AOF 重写和集群。
 - Web Server 没有 sendfile、限流和连接数上限。

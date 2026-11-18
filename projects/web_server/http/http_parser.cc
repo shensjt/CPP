@@ -170,9 +170,13 @@ HttpParser::Result HttpParser::Parse(Buffer& buffer, HttpRequest& request) {
         // 重复出现但值不一致视为请求走私风险，直接拒绝。
         if (name == "content-length") {
             std::size_t length = 0;
-            if (!ParseSize(value, length) || length > kMaxBodyBytes) {
+            if (!ParseSize(value, length)) {
                 state_ = State::kError;
                 return Result::kError;
+            }
+            if (length > kMaxBodyBytes) {
+                state_ = State::kError;
+                return Result::kTooLarge;
             }
             const auto existing = request.headers.find(name);
             if (existing != request.headers.end() && existing->second != value) {
