@@ -30,10 +30,9 @@
 
 ```text
 浏览器
-  │ HTTPS
+  │ HTTP/1.1 39.106.115.254:8080
   ▼
-Caddy（TLS / 反向代理）
-  │ HTTP/1.1 127.0.0.1:8080
+web_server 容器（0.0.0.0:8080）
   ▼
 TcpServer
   ├── Epoll             事件通知
@@ -46,8 +45,8 @@ TcpServer
 
 - IO 线程只做 `epoll_wait` 和分发
 - worker 负责连接的读写、HTTP 解析和静态文件处理
-- 连接注册 `EPOLLONESHOT`，同一 fd 同一时刻只有一个 worker
-- TLS 由 Caddy 处理，C++ 里只跑明文 HTTP
+- `EPOLLONESHOT` + 连接级锁，保证事件投递和所有权交接
+- 当前没有域名和 TLS，直接 HTTP 8080；Caddy 未安装
 
 ## 版本
 
@@ -311,6 +310,13 @@ nc 127.0.0.1 6380
 
 # 工程与交付
 
+## 文档
+
+- 架构：[doc/architecture.md](doc/architecture.md)
+- 部署与回滚：[doc/runbooks/](doc/runbooks/)
+- 发布记录：[doc/releases/](doc/releases/)
+- 故障复盘：[doc/incidents/](doc/incidents/)
+
 ## 目录结构
 
 ```text
@@ -332,7 +338,13 @@ projects/kv_store/
   bench/           bench_kv 压测客户端
 blog/              博客源文件、模板、构建脚本
 tests/             单元/集成测试
-deploy/            Caddyfile、systemd、部署脚本
+deploy/            旧 systemd 部署脚本（当前停用）
+doc/               项目工程文档
+  architecture.md  架构与关键决策
+  releases/        发布记录
+  incidents/       故障复盘
+  runbooks/        部署与回滚
+CLAUDE.md          协作约定
 Dockerfile         多阶段镜像构建
 .dockerignore      构建上下文排除
 compose.yaml       本地容器编排
@@ -347,7 +359,8 @@ Web Server：
 
 - 没有实现 sendfile，大文件仍走用户态缓冲
 - 内存池尚未接入 Web 服务器，目前作为独立组件
-- TLS 不在 C++ 内实现，交给 Caddy
+- 当前没有域名和 TLS，直接 HTTP 8080
+- LRU 缓存没有失效机制，内容更新后需要重启容器
 - 没有限流、连接数上限和认证
 
 KV Store：
@@ -365,14 +378,20 @@ KV Store：
 
 ## 部署
 
-```bash
-sudo bash deploy/setup.sh     # 安装/更新 unit 并启动
-sudo bash deploy/stop.sh      # 停止服务
-sudo bash deploy/restart.sh   # 重启并做本地健康检查
-sudo bash deploy/status.sh    # 状态、端口、请求、最近日志
-```
+当前生产使用 Docker Compose：
 
-详见 [deploy/README.md](deploy/README.md)。
+- 运行目录：`/opt/sjtweb-runtime`
+- 内容目录：`/opt/sjtwebserver/projects/web_server/www`
+- 入口：`http://39.106.115.254:8080`
+- 镜像：阿里云 ACR，tag 为 `sha-<commit>`
+- CD：合并 `main` 后自动构建、推送、部署、smoke
+
+部署与回滚：
+
+- [doc/runbooks/deploy.md](doc/runbooks/deploy.md)
+- [doc/runbooks/rollback.md](doc/runbooks/rollback.md)
+
+`deploy/` 下的 systemd 脚本是旧部署方式，当前停用，保留作回滚兜底。
 
 ## 链接
 
