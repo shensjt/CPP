@@ -21,8 +21,13 @@
 - HTTP/1.1 请求解析：请求行、Headers、Body 状态机
 - 静态文件服务：MIME、目录 index、HEAD、404/403/405/400/413
 - keep-alive 与流水线，`CloseAfterWrite` 保证响应发完再关
-- LRU 文件缓存（默认 16MB）
-- 双缓冲异步日志，everysec fsync，按大小滚动
+- LRU 文件缓存（默认 16MB，按 mtime/size 失效）
+- HTTP 缓存协商：ETag / Last-Modified / 304
+- 请求限额：request line 8KB、Headers 32KB、Body 1MB，超限 413
+- 读写缓冲上限：读 2MB / 写 8MB，超限关闭慢连接
+- 双缓冲异步日志，everysec fsync，按大小滚动，保留 5 份
+- 访问日志：method/path/status/bytes/duration
+- `/healthz`：返回 status 和编译期注入的 commit
 - 空闲连接超时，默认 60 秒
 - 路径穿越、URL 编码绕过、符号链接逃逸防护
 
@@ -174,7 +179,7 @@ cmake --build build/tests -j
 ctest --test-dir build/tests --output-on-failure
 ```
 
-当前 6 个测试可执行文件、202 个用例：
+当前 6 个测试可执行文件、206 个用例：
 
 - 线程池 / 阻塞队列
 - 内存池

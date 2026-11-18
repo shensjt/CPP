@@ -1,11 +1,43 @@
 #include "http/http_server.h"
 
+#include <chrono>
 #include <string>
 #include <utility>
 
 #include "log/logger.h"
 
+#ifndef BUILD_COMMIT
+#define BUILD_COMMIT "dev"
+#endif
+
 namespace {
+
+const char* MethodName(HttpRequest::Method method) {
+    switch (method) {
+        case HttpRequest::Method::kGet: return "GET";
+        case HttpRequest::Method::kPost: return "POST";
+        case HttpRequest::Method::kHead: return "HEAD";
+        default: return "UNKNOWN";
+    }
+}
+
+HttpResponse MakeHealthResponse(const HttpRequest& request) {
+    if (request.method != HttpRequest::Method::kGet &&
+        request.method != HttpRequest::Method::kHead) {
+        HttpResponse response(405);
+        response.SetHeader("Allow", "GET, HEAD");
+        response.SetContentType("text/plain; charset=utf-8");
+        response.SetBody("405 Method Not Allowed\n");
+        return response;
+    }
+
+    HttpResponse response(200);
+    response.SetContentType("application/json; charset=utf-8");
+    response.SetHeader("Cache-Control", "no-store");
+    response.SetBody(std::string("{\"status\":\"ok\",\"commit\":\"") +
+                     BUILD_COMMIT + "\"}");
+    return response;
+}
 
 // 错误响应后关闭连接：协议/请求已经不可信，继续解析可能错位。
 // CloseAfterWrite 保证响应写进内核后再关闭，不丢字节。
@@ -50,21 +82,58 @@ void HttpServer::OnMessage(TcpConnection& conn) {
     HttpParser* parser = GetParser(conn.Fd());
 
     while (conn.Connected()) {
+        const auto started = std::chrono::steady_clock::now();
         HttpRequest request;
         const auto result = parser->Parse(conn.ReadBuffer(), request);
+
+        auto log_access = [&](int status, std::size_t bytes) {
+            const double duration_ms =
+                std::chrono::duration<double, std::milli>(
+                    std::chrono::steady_clock::now() - started)
+                    .count();
+            LOG_INFO(
+                "access method=%s path=%s status=%d bytes=%zu duration_ms=%.2f",
+                MethodName(request.method), request.Path().c_str(), status,
+                bytes, duration_ms);
+        };
 
         if (result == HttpParser::Result::kNeedMore) {
             return;
         }
         if (result == HttpParser::Result::kTooLarge) {
             LOG_WARN("request too large from fd %d", conn.Fd());
-            SendError(conn, 413, "413 Payload Too Large\n");
+            const std::string body = "413 Payload Too Large\n";
+            SendError(conn, 413, body);
+            log_access(413, body.size());
             return;
         }
         if (result == HttpParser::Result::kError) {
             LOG_WARN("bad request from fd %d", conn.Fd());
-            SendError(conn, 400, "400 Bad Request\n");
+            const std::string body = "400 Bad Request\n";
+            SendError(conn, 400, body);
+            log_access(400, body.size());
             return;
+        }
+
+        if (request.Path() == "/healthz") {
+            HttpResponse response = MakeHealthResponse(request);
+            response.SetCloseConnection(!request.keep_alive);
+            const bool head_only =
+                request.method == HttpRequest::Method::kHead;
+            conn.Send(response.ToString(head_only));
+            log_access(response.StatusCode(),
+                       head_only ? 0 : response.Body().size());
+
+            if (!conn.Connected()) {
+                return;
+            }
+            if (!request.keep_alive) {
+                conn.CloseAfterWrite();
+                return;
+            }
+
+            parser->Reset();
+            continue;
         }
 
         HttpResponse response;
@@ -73,7 +142,9 @@ void HttpServer::OnMessage(TcpConnection& conn) {
         } catch (...) {
             // 静态文件处理异常不应打死 worker；回 500 并关闭。
             LOG_ERROR("handler exception on fd %d", conn.Fd());
-            SendError(conn, 500, "500 Internal Server Error\n");
+            const std::string body = "500 Internal Server Error\n";
+            SendError(conn, 500, body);
+            log_access(500, body.size());
             return;
         }
 
@@ -81,6 +152,8 @@ void HttpServer::OnMessage(TcpConnection& conn) {
         response.SetCloseConnection(!request.keep_alive);
         const bool head_only = request.method == HttpRequest::Method::kHead;
         conn.Send(response.ToString(head_only));
+        log_access(response.StatusCode(),
+                   head_only ? 0 : response.Body().size());
 
         if (!conn.Connected()) {
             return;

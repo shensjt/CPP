@@ -104,6 +104,25 @@ TEST(AsyncLogger_Rolling) {
     CHECK(fs::exists(path.string() + ".1"));
 }
 
+// LOG6：滚动保留 max_files 份。
+TEST(AsyncLogger_RotationKeepsN) {
+    TempDir dir;
+    const fs::path path = dir.path / "keep.log";
+
+    AsyncLogger logger;
+    logger.Start(path.string(), 128, 10, 3);
+    for (int i = 0; i < 100; ++i) {
+        logger.Append("0123456789abcdefghijklmnopqrstuvwxyz\n");
+    }
+    logger.Stop();
+
+    CHECK(fs::exists(path));
+    CHECK(fs::exists(path.string() + ".1"));
+    CHECK(fs::exists(path.string() + ".2"));
+    CHECK(fs::exists(path.string() + ".3"));
+    CHECK(!fs::exists(path.string() + ".4"));
+}
+
 // LOG4：未写满缓冲时，也按 flush 间隔落盘。
 TEST(AsyncLogger_PeriodicFlush) {
     TempDir dir;

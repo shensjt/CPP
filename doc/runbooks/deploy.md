@@ -50,6 +50,7 @@ deploy
   → 写入 IMAGE_TAG=sha-<commit>
   → docker compose pull
   → docker compose up -d
+  → curl /healthz，校验 commit
   → curl / 和 /css/style.css
   → 失败：恢复 .env.prev 并 up -d
 ```
@@ -72,9 +73,12 @@ echo "IMAGE_TAG=sha-<commit>" > .env
 docker compose pull
 docker compose up -d
 
+curl -fsS http://127.0.0.1:8080/healthz
 curl -fsS http://127.0.0.1:8080/ >/dev/null
 curl -fsS http://127.0.0.1:8080/css/style.css >/dev/null
 ```
+
+`/healthz` 的 `commit` 应与 `.env` 里 `IMAGE_TAG` 去掉 `sha-` 前缀后的值一致。
 
 ## 验证
 
@@ -82,13 +86,17 @@ curl -fsS http://127.0.0.1:8080/css/style.css >/dev/null
 cd /opt/sjtweb-runtime
 cat .env
 docker compose ps
+curl -s http://127.0.0.1:8080/healthz
 curl -I http://127.0.0.1:8080/
 
 # 外部
 curl --noproxy '*' -I http://39.106.115.254:8080/
 ```
 
-期望 `.env` 里的 `IMAGE_TAG` 与 `docker compose ps` 的 image tag 一致。
+期望：
+
+- `.env` 里的 `IMAGE_TAG` 与 `docker compose ps` 的 image tag 一致；
+- `/healthz` 的 `commit` 与 `IMAGE_TAG` 去掉 `sha-` 后一致。
 
 ## 常见故障
 
