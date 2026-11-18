@@ -43,6 +43,8 @@ jobs:
           provenance: false
           sbom: false
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+          build-args: |
+            BUILD_COMMIT=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -81,6 +83,14 @@ jobs:
               fi
               sleep 1
             done
+
+            HEALTH=$(curl -fsS http://127.0.0.1:8080/healthz 2>/dev/null || true)
+            if ! echo "$HEALTH" | grep -q "${{ github.sha }}"; then
+              echo "health check failed: $HEALTH"
+              cp .env.prev .env 2>/dev/null || true
+              docker compose up -d
+              exit 1
+            fi
 
             if ! curl -fsS http://127.0.0.1:8080/ >/dev/null \
                || ! curl -fsS http://127.0.0.1:8080/css/style.css >/dev/null; then

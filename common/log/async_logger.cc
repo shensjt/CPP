@@ -15,8 +15,10 @@ class LogFile {
 public:
     // 打开/创建文件；父目录不存在时自动创建。
     // 如果文件已存在，written_ 从当前大小开始，滚动阈值按累计大小算。
-    LogFile(std::string path, std::size_t max_size)
-        : path_(std::move(path)), max_size_(max_size) {
+    LogFile(std::string path, std::size_t max_size, std::size_t max_files)
+        : path_(std::move(path)),
+          max_size_(max_size),
+          max_files_(max_files) {
         std::error_code ec;
         const auto parent = std::filesystem::path(path_).parent_path();
         if (!parent.empty()) {
@@ -87,6 +89,11 @@ private:
         }
 
         std::error_code ec;
+        std::filesystem::remove(path_ + "." + std::to_string(max_files_), ec);
+        for (std::size_t i = max_files_; i > 1; --i) {
+            std::filesystem::rename(path_ + "." + std::to_string(i - 1),
+                                    path_ + "." + std::to_string(i), ec);
+        }
         std::filesystem::rename(path_, path_ + ".1", ec);
         Open();
         written_ = 0;
@@ -94,6 +101,7 @@ private:
 
     std::string path_;
     std::size_t max_size_;
+    std::size_t max_files_;
     std::size_t written_ = 0;
     std::FILE* file_ = nullptr;
 };
@@ -107,11 +115,12 @@ AsyncLogger::~AsyncLogger() {
 // 启动后端线程；重复 Start 直接忽略。
 // 文件打开失败会抛异常，由调用方决定是否回退 stderr。
 void AsyncLogger::Start(const std::string& path, std::size_t max_file_size,
-                        int flush_interval_ms) {
+                        int flush_interval_ms, std::size_t max_files) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (running_) return;
 
-    file_ = std::make_unique<LogFile>(path, max_file_size);
+    file_ = std::make_unique<LogFile>(path, max_file_size,
+                                      std::max<std::size_t>(1, max_files));
     current_ = std::make_unique<Buffer>();
     next_ = std::make_unique<Buffer>();
     pending_.clear();

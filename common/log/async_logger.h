@@ -33,9 +33,11 @@ public:
 
     // flush_interval_ms 控制后台线程 fsync 的间隔，默认 1 秒。
     // max_file_size 控制单个日志文件的滚动阈值。
+    // max_files 控制保留的滚动文件数量（server.log.1 ... .max_files）。
     void Start(const std::string& path,
                std::size_t max_file_size = 64 * 1024 * 1024,
-               int flush_interval_ms = 1000);
+               int flush_interval_ms = 1000,
+               std::size_t max_files = 5);
     void Stop();
 
     // 返回 false 表示日志未启动，调用方可以回退到 stderr。

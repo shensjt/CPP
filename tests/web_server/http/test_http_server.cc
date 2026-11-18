@@ -381,3 +381,57 @@ TEST(HttpServer_RequestTooLarge) {
     CHECK(client.ReadResponse(false, response));
     CHECK(response.rfind("HTTP/1.1 413 Payload Too Large", 0) == 0);
 }
+
+// HS10：/healthz 返回 status 和 commit。
+TEST(HttpServer_Health) {
+    TempDir dir;
+    dir.Write("index.html", "home");
+    ServerGuard guard(dir.path.string());
+
+    Client client;
+    CHECK(client.Connect(guard.server.Port()));
+    CHECK(client.Send("GET /healthz HTTP/1.1\r\nHost: x\r\n\r\n"));
+
+    std::string response;
+    CHECK(client.ReadResponse(false, response));
+    CHECK(response.rfind("HTTP/1.1 200 OK", 0) == 0);
+    CHECK(response.find("\"status\":\"ok\"") != std::string::npos);
+    CHECK(response.find("\"commit\":\"dev\"") != std::string::npos);
+    CHECK(response.find("Cache-Control: no-store") != std::string::npos);
+}
+
+// HS11：HEAD /healthz 不返回 body。
+TEST(HttpServer_HealthHead) {
+    TempDir dir;
+    dir.Write("index.html", "home");
+    ServerGuard guard(dir.path.string());
+
+    Client client;
+    CHECK(client.Connect(guard.server.Port()));
+    CHECK(client.Send("HEAD /healthz HTTP/1.1\r\nHost: x\r\n\r\n"));
+
+    std::string response;
+    CHECK(client.ReadResponse(true, response));
+    CHECK(response.rfind("HTTP/1.1 200 OK", 0) == 0);
+    CHECK(response.find("\"status\"") == std::string::npos);
+}
+
+// HS12：POST /healthz 返回 405。
+TEST(HttpServer_HealthMethodNotAllowed) {
+    TempDir dir;
+    dir.Write("index.html", "home");
+    ServerGuard guard(dir.path.string());
+
+    Client client;
+    CHECK(client.Connect(guard.server.Port()));
+    CHECK(client.Send(
+        "POST /healthz HTTP/1.1\r\n"
+        "Host: x\r\n"
+        "Content-Length: 0\r\n"
+        "\r\n"));
+
+    std::string response;
+    CHECK(client.ReadResponse(false, response));
+    CHECK(response.rfind("HTTP/1.1 405 Method Not Allowed", 0) == 0);
+    CHECK(response.find("Allow: GET, HEAD") != std::string::npos);
+}

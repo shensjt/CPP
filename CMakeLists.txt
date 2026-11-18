@@ -7,6 +7,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Threads REQUIRED)
 
+set(BUILD_COMMIT "dev" CACHE STRING "Build commit exposed by /healthz")
+
 add_library(net STATIC
     common/net/epoll.cc
     common/net/buffer.cc
@@ -33,6 +35,7 @@ add_library(http STATIC
 target_include_directories(http PUBLIC projects/web_server)
 target_link_libraries(http PUBLIC net log)
 target_compile_options(http PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_definitions(http PRIVATE BUILD_COMMIT="${BUILD_COMMIT}")
 
 add_library(kv STATIC
     projects/kv_store/protocol/resp.cc

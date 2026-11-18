@@ -44,7 +44,7 @@ web_server 容器（0.0.0.0:8080）
 | `projects/kv_store/command/` | 命令分发与参数校验 |
 | `projects/kv_store/aof/` | AOF 追加、fsync、回放、尾部修复 |
 | `projects/kv_store/server/` | `KvServer` 接入网络层 |
-| `tests/` | 6 个测试可执行文件、202 个用例 |
+| `tests/` | 6 个测试可执行文件、206 个用例 |
 | `blog/` | Markdown → HTML 构建 |
 | `deploy/` | 旧 systemd 部署脚本，当前停用 |
 
@@ -100,6 +100,8 @@ accept
 - 静态文件服务做 URL 解码、路径规范化、root 范围校验；
 - 静态文件响应带 `ETag` / `Last-Modified` / `Cache-Control`，条件请求返回 304；
 - 请求限额：request line 8KB、Headers 32KB、Body 1MB，Body 超限返回 413；
+- `/healthz` 返回 status 和编译期注入的 commit；
+- 访问日志记录 method/path/status/bytes/duration；
 - 响应统一生成 `Content-Length` 和 `Connection`；
 - `CloseAfterWrite` 保证响应发完再关闭。
 
@@ -159,6 +161,10 @@ HTML 构建产物统一放在 `build/`，不写源码树。`make blog` 生成 `b
 
 LRU 缓存项保存 `body + mtime + size`，命中后 `stat` 比对当前文件；不一致按 miss 处理。静态响应带 `ETag` / `Last-Modified` / `Cache-Control`，条件请求返回 304。内容更新后不需要重启容器。
 
+### 5.8 可观测性
+
+编译期通过 `BUILD_COMMIT` 注入 commit；`/healthz` 返回 `status` 和 `commit`；访问日志记录 method/path/status/bytes/duration；日志按大小滚动并保留 5 份。CD smoke 校验 `/healthz` 的 commit，不匹配自动回滚。当前没有 metrics、告警和链路追踪。
+
 ## 6. 已知限制
 
 Web Server：
@@ -179,8 +185,8 @@ KV Store：
 部署：
 
 - 没有域名和 TLS，直接 HTTP 8080；
-- 没有 health / version 端点；
-- CD smoke 只覆盖 `/` 和 `/css/style.css`；
+- 有 `/healthz` 和访问日志，但没有 metrics / 告警 / 链路追踪；
+- CD smoke 检查 `/`、CSS 和 `/healthz` 的 commit；
 - 内容流水线（内容版本、校验、独立发布）尚未实现。
 
 ## 7. 入口
