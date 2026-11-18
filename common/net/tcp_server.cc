@@ -265,10 +265,20 @@ void TcpServer::Dispatch(int fd, std::uint32_t events) {
 
     conn->SetInFlight(true);
     const bool posted = pool_->Post([this, fd, events, conn] {
+        std::lock_guard<std::recursive_mutex> lock(conn->Mutex());
         if (conn->Connected()) {
             HandleEvents(fd, events);
         }
+        // 顺序不能反：先清 InFlight，再 Rearm。
+        // 如果先 Rearm，fd 会立刻重新激活，IO 线程可能在本 worker
+        // 清 InFlight 之前再派一个 worker，两个线程并发读写同一个 Buffer。
         conn->SetInFlight(false);
+        if (conn->Connected()) {
+            conn->Rearm();
+            if (!conn->Connected()) {
+                CloseConnection(fd);
+            }
+        }
     });
     if (!posted) {
         // 队列已关闭，投递失败：恢复状态并关闭连接，避免泄漏。
@@ -277,7 +287,8 @@ void TcpServer::Dispatch(int fd, std::uint32_t events) {
     }
 }
 
-// 事件处理顺序：读 -> 错误/挂断 -> 写 -> Rearm。
+// 事件处理顺序：读 -> 错误/挂断 -> 写。
+// Rearm 不在这里做，由 Dispatch 的 worker 任务在清 InFlight 之后统一调用。
 // 每一步都可能关闭连接，所以每次之后都要重新检查 Connected()。
 void TcpServer::HandleEvents(int fd, std::uint32_t events) {
     auto conn = FindConnection(fd);
@@ -312,13 +323,8 @@ void TcpServer::HandleEvents(int fd, std::uint32_t events) {
         return;
     }
 
-    // ONESHOT 模式下必须重新注册，否则这个 fd 以后不再有事件。
-    if (use_pool_) {
-        conn->Rearm();
-        if (!conn->Connected()) {
-            CloseConnection(fd);
-        }
-    }
+    // ONESHOT 的重新注册由 Dispatch 在 SetInFlight(false) 之后执行。
+    // 在这里做会让 fd 在 InFlight 仍为 true 时提前激活，导致并发处理。
 }
 
 // 返回 shared_ptr 而不是裸指针：调用方持有期间对象不会被析构。
@@ -346,6 +352,7 @@ void TcpServer::CloseConnection(int fd) {
     }
 
     if (conn) {
+        std::lock_guard<std::recursive_mutex> lock(conn->Mutex());
         conn->Close();
     }
     connection_count_.fetch_sub(1);

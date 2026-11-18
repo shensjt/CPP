@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
+#include <mutex>
 #include <string>
 
 #include "net/buffer.h"
@@ -31,6 +32,10 @@ public:
     int Fd() const { return fd_; }
     bool Connected() const { return connected_; }
     Buffer& ReadBuffer() { return read_buffer_; }
+
+    // worker 在 HandleEvents + Rearm 期间持有；补上 EPOLLONESHOT
+    // 不保证的所有权交接内存序。处理路径内可能重入 CloseConnection。
+    std::recursive_mutex& Mutex() { return mutex_; }
 
     // 设置可读回调；TcpServer 在 accept 后注入，HttpServer/KvServer 在此解析。
     void SetMessageCallback(std::function<void(TcpConnection&)> cb);
@@ -87,4 +92,5 @@ private:
     bool close_after_write_ = false;
     std::atomic<std::int64_t> last_active_ms_{0};
     std::atomic<bool> in_flight_{false};
+    std::recursive_mutex mutex_;
 };
