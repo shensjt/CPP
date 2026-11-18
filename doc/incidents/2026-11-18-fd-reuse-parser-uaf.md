@@ -133,7 +133,7 @@ CloseConnection(fd)
 
 - 前置竞态：[INC-2026-11-18-01](2026-11-18-tsan-connection-race.md)
 - 代码：`common/net/tcp_server.cc`、`common/net/tcp_connection.h`、`common/net/tcp_connection.cc`
-- 测试：`tests/test_http_server.cc`
+- 测试：`tests/web_server/http/test_http_server.cc`
 - 发布记录：[v0.1-demo](../releases/v0.1-demo.md)
 
 ## 更新记录
