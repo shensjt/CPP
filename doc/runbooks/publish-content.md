@@ -54,8 +54,15 @@ ssh deploy@39.106.115.254 '
 | `REMOTE` | `/opt/sjtweb-runtime` |
 | `BASE` | `http://127.0.0.1:8080` |
 | `MKDOCS` | `mkdocs` |
+| `SSH_KEY` | 空（使用默认 key / agent） |
 
-示例：
+如果 key 不在默认位置：
+
+```bash
+SSH_KEY=$HOME/.ssh/sjt_deploy make publish
+```
+
+其他示例：
 
 ```bash
 HOST=deploy@example.com make publish
