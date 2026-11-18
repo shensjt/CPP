@@ -2,6 +2,13 @@
 docs/
 tmp/
 
+# 本地协作约定（Claude Code，不入库）
+CLAUDE.md
+
+# 博客真实内容 / 草稿（本地维护，不入库）
+blog/content/
+blog/drafts/
+
 # 编译产物
 a.out
 *.o

@@ -3,10 +3,12 @@
 build
 docs
 doc
+CLAUDE.md
+blog/content
+blog/drafts
 logs
 data
 tests
-deploy
 tmp
 projects/web_server/www
 *.tar.gz
