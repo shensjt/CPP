@@ -56,8 +56,10 @@ TcpServer
 
 ## 版本
 
-- `v0.1-demo`：Web Server 可演示快照
-- `v0.2-kv`：KV Store（跳表 + RESP + 读写锁 + AOF）
+- [v0.1-demo](doc/releases/v0.1-demo.md)：Web Server 可演示快照
+- [v0.2-kv](doc/releases/v0.2-kv.md)：KV Store（跳表 + RESP + 读写锁 + AOF）
+- [v0.3.0](doc/releases/v0.3.0.md)：CI/CD 与容器化
+- [v0.4.0](doc/releases/v0.4.0.md)：HTTP 正确性、缓存协商、可观测性、优雅停机
 
 仓库只保存源码、模板、测试、部署配置和一篇演示文章；`build/www/` 是构建产物，不入库。
 
