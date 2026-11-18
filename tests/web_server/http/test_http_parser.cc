@@ -218,7 +218,7 @@ TEST(HttpParser_RequestLineTooLong) {
     CHECK(parser.Parse(buffer, request) == HttpParser::Result::kError);
 }
 
-// HP12：Body 超过上限返回 Error。
+// HP12：Body 超过上限返回 TooLarge。
 TEST(HttpParser_BodyTooLarge) {
     Buffer buffer;
     buffer.Append(
@@ -226,6 +226,18 @@ TEST(HttpParser_BodyTooLarge) {
         "Host: example.com\r\n"
         "Content-Length: 2000000\r\n"
         "\r\n");
+
+    HttpParser parser;
+    HttpRequest request;
+    CHECK(parser.Parse(buffer, request) == HttpParser::Result::kTooLarge);
+}
+
+// HP14：Headers 超过上限返回 Error。
+TEST(HttpParser_HeadersTooLarge) {
+    Buffer buffer;
+    buffer.Append("GET / HTTP/1.1\r\nX-Large: ");
+    buffer.Append(std::string(33 * 1024, 'a'));
+    buffer.Append("\r\n\r\n");
 
     HttpParser parser;
     HttpRequest request;

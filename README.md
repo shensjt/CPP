@@ -19,7 +19,7 @@
 - epoll 事件循环，非阻塞 IO，`EPOLLONESHOT` 下 worker 拥有连接
 - 分段 Buffer，`readv` 读取，处理半包/粘包
 - HTTP/1.1 请求解析：请求行、Headers、Body 状态机
-- 静态文件服务：MIME、目录 index、HEAD、404/403/405/400
+- 静态文件服务：MIME、目录 index、HEAD、404/403/405/400/413
 - keep-alive 与流水线，`CloseAfterWrite` 保证响应发完再关
 - LRU 文件缓存（默认 16MB）
 - 双缓冲异步日志，everysec fsync，按大小滚动
@@ -174,7 +174,7 @@ cmake --build build/tests -j
 ctest --test-dir build/tests --output-on-failure
 ```
 
-当前 6 个测试可执行文件、200 个用例：
+当前 6 个测试可执行文件、202 个用例：
 
 - 线程池 / 阻塞队列
 - 内存池

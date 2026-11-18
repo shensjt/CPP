@@ -56,6 +56,11 @@ void HttpServer::OnMessage(TcpConnection& conn) {
         if (result == HttpParser::Result::kNeedMore) {
             return;
         }
+        if (result == HttpParser::Result::kTooLarge) {
+            LOG_WARN("request too large from fd %d", conn.Fd());
+            SendError(conn, 413, "413 Payload Too Large\n");
+            return;
+        }
         if (result == HttpParser::Result::kError) {
             LOG_WARN("bad request from fd %d", conn.Fd());
             SendError(conn, 400, "400 Bad Request\n");

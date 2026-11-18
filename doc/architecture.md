@@ -44,7 +44,7 @@ web_server 容器（0.0.0.0:8080）
 | `projects/kv_store/command/` | 命令分发与参数校验 |
 | `projects/kv_store/aof/` | AOF 追加、fsync、回放、尾部修复 |
 | `projects/kv_store/server/` | `KvServer` 接入网络层 |
-| `tests/` | 6 个测试可执行文件、200 个用例 |
+| `tests/` | 6 个测试可执行文件、202 个用例 |
 | `blog/` | Markdown → HTML 构建 |
 | `deploy/` | 旧 systemd 部署脚本，当前停用 |
 
@@ -99,6 +99,7 @@ accept
 - 每个连接一个 `HttpParser`，支持 keep-alive 和流水线；
 - 静态文件服务做 URL 解码、路径规范化、root 范围校验；
 - 静态文件响应带 `ETag` / `Last-Modified` / `Cache-Control`，条件请求返回 304；
+- 请求限额：request line 8KB、Headers 32KB、Body 1MB，Body 超限返回 413；
 - 响应统一生成 `Content-Length` 和 `Connection`；
 - `CloseAfterWrite` 保证响应发完再关闭。
 
