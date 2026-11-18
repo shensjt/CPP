@@ -139,6 +139,34 @@ build/www/    首页/栏目页/文章页/CSS（构建产物，不入库）
 
 > 仓库里只有一篇演示文章；真实文章放本地 `docs/blog/`，用 `--content docs/blog` 构建，不会进公开仓库。
 
+## Docker（本地）
+
+构建：
+
+```bash
+docker build --build-arg APT_MIRROR=mirrors.aliyun.com -t sjtwebserver:dev .
+```
+
+运行：
+
+```bash
+docker run --rm -p 127.0.0.1:8080:8080 sjtwebserver:dev
+```
+
+或使用 compose：
+
+```bash
+APT_MIRROR=mirrors.aliyun.com docker compose up --build -d
+docker compose ps
+curl -f http://127.0.0.1:8080/
+docker compose down
+```
+
+- 镜像包含 `web_server` 与 `blog/demo` 生成的 `www`；
+- 容器内监听 `0.0.0.0:8080`，宿主机只发布到 `127.0.0.1`；
+- 运行用户是 `app`（UID 10001），不是 root；
+- `APT_MIRROR` 只影响构建阶段，默认 `archive.ubuntu.com`，国内可用 `mirrors.aliyun.com`。
+
 ## 测试
 
 ```bash
@@ -305,6 +333,9 @@ projects/kv_store/
 blog/              博客源文件、模板、构建脚本
 tests/             单元/集成测试
 deploy/            Caddyfile、systemd、部署脚本
+Dockerfile         多阶段镜像构建
+.dockerignore      构建上下文排除
+compose.yaml       本地容器编排
 build/             构建产物（不入库）
   server/          可执行文件
   www/             生成的静态站点

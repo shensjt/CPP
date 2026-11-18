@@ -1,0 +1,12 @@
+.git
+.github
+build
+docs
+doc
+logs
+data
+tests
+deploy
+tmp
+projects/web_server/www
+*.tar.gz
