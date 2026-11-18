@@ -149,5 +149,5 @@ HandleEvents → SetInFlight(false) → Rearm
 ## 关联
 
 - 代码：`common/net/tcp_server.cc`、`common/net/tcp_connection.h`
+- 后续同类问题：[INC-2026-11-18-02 fd 复用导致的 HttpParser UAF](2026-11-18-fd-reuse-parser-uaf.md)
 - 发布记录：[v0.1-demo](../releases/v0.1-demo.md)
-- 面试讲法：`docs/面试准备/工程案例/01-TcpServer连接竞态.md`（本地学习材料）
