@@ -20,11 +20,11 @@ web_server 容器（0.0.0.0:8080）
   └── /app/www
         ▲ 只读挂载
         │
-/opt/sjtwebserver/projects/web_server/www
+/opt/sjtweb-runtime/www
 ```
 
 - 容器由 Docker Compose 管理，运行目录 `/opt/sjtweb-runtime`；
-- systemd `sjtwebserver` 已 stop / disable，unit 保留作回滚兜底；
+- 旧 systemd unit 已 stop / disable；旧 `deploy/` 脚本已删除；
 - 当前没有域名和 TLS，Caddy 未安装；
 - 镜像从阿里云 ACR 拉取，tag 为 `sha-<commit>`。
 
@@ -45,8 +45,7 @@ web_server 容器（0.0.0.0:8080）
 | `projects/kv_store/aof/` | AOF 追加、fsync、回放、尾部修复 |
 | `projects/kv_store/server/` | `KvServer` 接入网络层 |
 | `tests/` | 6 个测试可执行文件、206 个用例 |
-| `blog/` | Markdown → HTML 构建 |
-| `deploy/` | 旧 systemd 部署脚本，当前停用 |
+| `blog/` | MkDocs 内容站配置、演示内容和发布配置 |
 
 ## 3. 线程与并发模型
 
@@ -144,7 +143,8 @@ HTML 构建产物统一放在 `build/`，不写源码树。`make blog` 生成 `b
 - 多阶段 Dockerfile：builder 编译并生成 `www`，runtime 只保留二进制和 `www`；
 - 非 root 用户 `app`（UID 10001）；
 - 容器内监听 `0.0.0.0:8080`；
-- 内容通过宿主机目录只读挂载，代码发布和内容发布解耦；
+- 内容通过 `/opt/sjtweb-runtime/www` 只读挂载，代码发布和内容发布解耦；
+- 内容由本地 MkDocs 构建，`make publish` 通过 rsync 发布，不重启容器；
 - 当前没有 Caddy / 域名 / TLS，宿主机直接发布 `8080`。
 
 ### 5.5 ACR 与部署
@@ -187,12 +187,15 @@ KV Store：
 
 - 没有域名和 TLS，直接 HTTP 8080；
 - 有 `/healthz` 和访问日志，但没有 metrics / 告警 / 链路追踪；
-- CD smoke 检查 `/`、CSS 和 `/healthz` 的 commit；
-- 内容流水线（内容版本、校验、独立发布）尚未实现。
+- CD smoke 检查 `/`、`/sitemap.xml` 和 `/healthz` 的 commit；
+- 内容发布是本地脚本：构建、快照 `www.prev`、rsync、smoke、失败回滚；
+- 内容只有一份 `www.prev` 快照，没有 push-to-publish。
 
 ## 7. 入口
 
 - 项目说明：[README.md](../README.md)
+- 内容流水线：[blog-pipeline.md](blog-pipeline.md)
 - 部署与回滚：[runbooks/deploy.md](runbooks/deploy.md)、[runbooks/rollback.md](runbooks/rollback.md)
+- 内容发布：[runbooks/publish-content.md](runbooks/publish-content.md)
 - 发布记录：[releases/](releases/)
 - 故障复盘：[incidents/](incidents/)

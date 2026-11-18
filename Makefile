@@ -1,15 +1,19 @@
 PYTHON ?= python3
+MKDOCS := $(PYTHON) -m mkdocs
 
-.PHONY: deps blog blog-local server kv test verify run run-local run-kv bench-kv
+.PHONY: deps blog blog-local serve server kv test verify run run-local run-kv bench-kv publish
 
 deps:
 	$(PYTHON) -m pip install -r blog/requirements.txt
 
 blog:
-	$(PYTHON) blog/scripts/build.py --content blog/demo --out build/www
+	$(MKDOCS) build -f blog/mkdocs-demo.yml -d $(CURDIR)/build/www --strict
 
 blog-local:
-	$(PYTHON) blog/scripts/build.py --content docs/blog --out build/www
+	$(MKDOCS) build -f blog/mkdocs.yml -d $(CURDIR)/build/www --strict
+
+serve:
+	$(MKDOCS) serve -f blog/mkdocs.yml
 
 server:
 	cmake -S . -B build/server -DCMAKE_BUILD_TYPE=Release
@@ -35,7 +39,10 @@ verify:
 	cmake -S tests -B build/verify-tests
 	cmake --build build/verify-tests -j
 	ctest --test-dir build/verify-tests --output-on-failure
-	$(PYTHON) blog/scripts/build.py --content blog/demo --out build/verify-www
+	$(MKDOCS) build -f blog/mkdocs-demo.yml -d $(CURDIR)/build/verify-www --strict
+
+publish:
+	./scripts/publish-content.sh
 
 run: blog server
 	./build/server/web_server --host 127.0.0.1 --port 8080 \

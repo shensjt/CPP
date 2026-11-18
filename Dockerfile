@@ -2,6 +2,7 @@ FROM ubuntu:24.04 AS builder
 
 ARG APT_MIRROR=archive.ubuntu.com
 ARG BUILD_COMMIT=dev
+ARG PIP_INDEX_URL=https://pypi.org/simple
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN sed -i \
@@ -10,7 +11,7 @@ RUN sed -i \
         /etc/apt/sources.list.d/ubuntu.sources \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-        build-essential cmake python3-yaml python3-pygments \
+        build-essential cmake python3 python3-venv ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
@@ -19,7 +20,14 @@ COPY . .
 RUN cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release \
         -DBUILD_COMMIT="${BUILD_COMMIT}" \
     && cmake --build build/release --target web_server -j"$(nproc)" \
-    && python3 blog/scripts/build.py --content blog/demo --out /out/www
+    && python3 -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir \
+         -i "${PIP_INDEX_URL}" \
+         -r blog/requirements.txt \
+    && /opt/venv/bin/mkdocs build \
+         -f blog/mkdocs-demo.yml \
+         -d /out/www \
+         --strict
 
 FROM ubuntu:24.04
 

@@ -93,7 +93,7 @@ jobs:
             fi
 
             if ! curl -fsS http://127.0.0.1:8080/ >/dev/null \
-               || ! curl -fsS http://127.0.0.1:8080/css/style.css >/dev/null; then
+               || ! curl -fsS http://127.0.0.1:8080/sitemap.xml >/dev/null; then
               echo "smoke test failed, rolling back"
               cp .env.prev .env 2>/dev/null || true
               docker compose up -d
