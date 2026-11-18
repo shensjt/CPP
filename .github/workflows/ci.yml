@@ -57,3 +57,31 @@ jobs:
           cmake -S tests -B build/tsan -DENABLE_TSAN=ON
           cmake --build build/tsan -j
           ctest --test-dir build/tsan --output-on-failure
+
+  docker:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t sjtwebserver:ci .
+
+      - name: Smoke test
+        run: |
+          docker run -d --rm --name sjtweb-ci -p 127.0.0.1:18080:8080 sjtwebserver:ci
+          for i in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:18080/ >/dev/null && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:18080/ >/dev/null
+          curl -fsS http://127.0.0.1:18080/css/style.css >/dev/null
+          docker logs sjtweb-ci
+
+      - name: Container logs
+        if: failure()
+        run: docker logs sjtweb-ci || true
+
+      - name: Stop container
+        if: always()
+        run: docker stop sjtweb-ci || true
