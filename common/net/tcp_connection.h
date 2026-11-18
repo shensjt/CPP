@@ -64,9 +64,13 @@ public:
     // 用于 Connection: close 或协议错误：先保证响应发完。
     void CloseAfterWrite();
 
-    // 幂等关闭：epoll Del + close + connected_ = false。
+    // 幂等关闭：epoll Del + connected_ = false；fd 暂存，不立即 close。
     // 不删除 TcpServer 的连接表项，避免在回调栈上删除自己。
     void Close();
+
+    // 真正关闭 fd。只由 TcpServer 在把连接从表中移除后调用，
+    // 避免 fd 在旧表项还在时被内核复用给新连接。
+    void CloseFd();
 
     // 活跃时间：读/写/发送时刷新，空闲扫描据此判断超时。
     void Touch();
@@ -84,6 +88,7 @@ private:
 
     Epoll* epoll_;
     int fd_;
+    int pending_close_fd_ = -1;
     bool connected_;
     Buffer read_buffer_;
     Buffer write_buffer_;

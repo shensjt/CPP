@@ -47,6 +47,7 @@ std::int64_t TcpConnection::IdleForMs(std::int64_t now_ms) const {
 // 兜底关闭：正常路径已经 Close 过时，Close 内部会直接返回。
 TcpConnection::~TcpConnection() {
     Close();
+    CloseFd();
 }
 
 void TcpConnection::SetMessageCallback(std::function<void(TcpConnection&)> cb) {
@@ -181,7 +182,9 @@ void TcpConnection::UpdateInterest() {
 }
 
 // 幂等关闭：可能来自读 EOF、写错误、空闲扫描、析构等多条路径。
-// 先 epoll Del 再 close，避免 fd 被复用时旧事件串到新连接。
+// 只做 epoll Del 和状态标记，fd 先暂存；TcpServer 从连接表移除后再 CloseFd。
+// 如果这里直接 close，内核可能立刻把同一个 fd 复用给新连接，
+// 而旧表项还没删，emplace 会失败并误关新连接。
 // 不在这里删除 TcpServer 的连接表项：对象可能正在自己的回调栈上。
 void TcpConnection::Close() {
     if (!connected_) return;
@@ -194,8 +197,14 @@ void TcpConnection::Close() {
             // fd 已不可用时忽略
         }
     }
-    if (fd_ >= 0) {
-        ::close(fd_);
-        fd_ = -1;
+    pending_close_fd_ = fd_;
+    fd_ = -1;
+}
+
+// 由 TcpServer 在表项移除后调用，保证 fd 的复用发生在表项清理之后。
+void TcpConnection::CloseFd() {
+    if (pending_close_fd_ >= 0) {
+        ::close(pending_close_fd_);
+        pending_close_fd_ = -1;
     }
 }

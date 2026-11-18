@@ -106,6 +106,7 @@ TcpServer::~TcpServer() {
         std::lock_guard<std::mutex> lock(connections_mutex_);
         for (auto& [fd, conn] : connections_) {
             conn->Close();
+            conn->CloseFd();
         }
         connections_.clear();
     }
@@ -232,7 +233,13 @@ void TcpServer::HandleAccept() {
 
         {
             std::lock_guard<std::mutex> lock(connections_mutex_);
-            connections_.emplace(fd, conn);
+            const auto [it, inserted] = connections_.emplace(fd, conn);
+            (void)it;
+            if (!inserted) {
+                // fd 仍被旧表项占用：不能有两个对象拥有同一个 fd。
+                // 放弃这次 accept，conn 析构时会关闭新 fd。
+                continue;
+            }
         }
 
         std::uint32_t events = EPOLLIN;
@@ -352,12 +359,17 @@ void TcpServer::CloseConnection(int fd) {
     }
 
     if (conn) {
-        std::lock_guard<std::recursive_mutex> lock(conn->Mutex());
-        conn->Close();
+        {
+            std::lock_guard<std::recursive_mutex> lock(conn->Mutex());
+            conn->Close();
+        }
+        // 先让上层清理 per-fd 状态（HttpServer 的 parser、KV 的会话等），
+        // 此时 fd 还没 close，内核不会复用，回调不会误删新连接的状态。
+        if (close_callback_) {
+            close_callback_(fd);
+        }
+        // 表项已移除、回调已完成，这时才真正关闭 fd。
+        conn->CloseFd();
     }
     connection_count_.fetch_sub(1);
-
-    if (close_callback_) {
-        close_callback_(fd);
-    }
 }
