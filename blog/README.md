@@ -1,17 +1,27 @@
 # 博客构建
 
-仓库只带 `blog/demo/` 里的演示内容；你自己的文章放本地 `docs/blog/`。构建后生成静态站到 `build/www/`。服务器只负责发文件，不需要 Python。
+仓库只带 `blog/demo/` 里的演示内容；真实文章放本地 `blog/content/`（已 gitignore）。构建后生成静态站到 `build/www/`。服务器只负责发文件，不需要 Python。
 
-自己的真实文章不要放进公开仓库，放在本地 `docs/blog/`（已被 gitignore），构建时用 `--content docs/blog`。内容目录结构：
+## 目录
 
 ```text
-docs/blog/
-├── posts/
+blog/
+├── mkdocs.yml           站点配置
+├── mkdocs-demo.yml      演示站配置
+├── requirements.txt     MkDocs Material
+├── post-template.md     文章模板
+├── content/             真实内容（gitignore）
+│   ├── index.md         首页
+│   ├── about.md
 │   ├── devlog/
 │   ├── deepdive/
 │   ├── notes/
-│   └── release/
-└── about.md        # 可选
+│   ├── release/
+│   ├── projects/
+│   └── images/
+├── drafts/              草稿（gitignore，不参与构建）
+├── demo/                演示内容
+└── overrides/           可选，主题定制
 ```
 
 ## 依赖
@@ -22,106 +32,63 @@ python3 -m venv .venv
 pip install -r blog/requirements.txt
 ```
 
-Ubuntu 也可以直接装系统包：
-
-```bash
-sudo apt install python3-yaml python3-pygments
-```
-
-## 目录
-
-```text
-blog/
-├── config.yaml          站点名、作者、GitHub
-├── post-template.md     文章模板，不会被构建
-├── demo/                仓库里的演示内容
-│   ├── about.md
-│   └── posts/devlog/example.md
-├── templates/
-│   ├── base.html        页面骨架
-│   ├── index.html       首页
-│   ├── post.html        文章页
-│   ├── list.html        栏目页
-│   ├── favicon.svg
-│   └── css/style.css
-└── scripts/build.py
-```
-
-你的真实内容放在本地：
-
-```text
-docs/blog/
-├── posts/devlog/...
-├── posts/deepdive/...
-└── about.md
-```
+Ubuntu 24.04 的系统 Python 受 PEP 668 保护，建议用 venv。
 
 ## 写一篇文章
 
-1. 复制模板到本地内容目录（不进 Git）：
+1. 在对应分块新建文件：
 
 ```bash
-mkdir -p docs/blog/posts/devlog
-cp blog/post-template.md docs/blog/posts/devlog/2026-11-02-first-post.md
+$EDITOR blog/content/devlog/2026-11-19-first-post.md
 ```
 
-2. 填 front matter：
+2. 第一行写 H1，下面写日期和正文：
 
-```yaml
----
-title: "文章标题"
-date: "2026-11-02"
-category: "devlog"        # devlog / deepdive / notes / release
-tags: ["C++", "epoll"]
-summary: "列表页显示的一句话"
-draft: false
----
+```markdown
+# 文章标题
+
+2026-11-19
+
+正文……
+
+## 背景
+
+![图片](thread-pool.png)
+
+相关阅读：[另一篇](../deepdive/another-post.md)
 ```
 
-3. 正文用 Markdown 写。当前支持标题、段落、列表、引用、代码块、行内代码、加粗、链接；暂不支持表格和图片。
+3. 图片放文章旁边，或放 `content/images/` 并用 `../images/xxx.png`。
+4. 站内链接写相对 `.md` 路径，MkDocs 会改写成 HTML URL；目标不存在时构建失败。
 
-4. 构建：
+## 预览与构建
 
 ```bash
-# 仓库演示内容（默认）
-python3 blog/scripts/build.py
+# 本地预览真实内容
+make serve
 
-# 本地真实文章
-python3 blog/scripts/build.py --content docs/blog
-```
+# 真实内容构建到 build/www
+make blog-local
 
-输出：
+# 演示内容构建到 build/www
+make blog
 
-```text
-built N posts from ... into .../build/www
-```
-
-## 本地预览
-
-```bash
-python3 -m http.server -d build/www 8000
-# http://127.0.0.1:8000/
-```
-
-或者用 C++ 服务器：
-
-```bash
-./build/server/web_server --host 127.0.0.1 --port 8080 \
-  --root build/www --threads 4 --timeout 60
+# 完整验证：C++ 构建/测试 + 演示站构建到 build/verify-www
+make verify
 ```
 
 ## 发布
 
 ```bash
-rsync -avz --delete build/www/ \
-  root@<ECS公网IP>:/opt/sjtwebserver/www/
+make publish
 ```
 
-静态文件直接生效，不需要重启服务。
+脚本会构建、快照 `www.prev`、rsync 到服务器、smoke，失败自动回滚。不重启容器。
 
 ## 注意
 
-- `build.py` 会清空并重建 `build/www/`，不要手改生成后的 HTML。
-- `draft: true` 的文章不会生成。
-- `build/www/` 在 `build/` 下，已被 `.gitignore` 忽略，只提交源码和模板。
-- 真实文章放在 `docs/blog/`，不要提交；仓库里只保留一篇演示文章。
+- 不要手改 `build/www/`，下次构建会清空；
+- 不再使用 front matter；MkDocs 默认不解析，会当正文渲染；
+- `draft` 文章放 `blog/drafts/`，写完再移进 `content/`；
+- 文件名就是 URL，发布后不要随便改名；
+- 真实内容不要提交到公开仓库。

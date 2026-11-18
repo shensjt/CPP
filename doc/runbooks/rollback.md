@@ -17,7 +17,7 @@ docker compose pull
 docker compose up -d
 
 curl -fsS http://127.0.0.1:8080/ >/dev/null
-curl -fsS http://127.0.0.1:8080/css/style.css >/dev/null
+curl -fsS http://127.0.0.1:8080/sitemap.xml >/dev/null
 ```
 
 如果 `.env.prev` 不存在，手动写入上一个可用的 sha：
@@ -27,47 +27,30 @@ echo "IMAGE_TAG=sha-<previous>" > .env
 docker compose up -d
 ```
 
-## 回滚到 systemd
+## 内容回滚
 
-systemd unit 仍保留，但当前是 disabled。
-
-```bash
-cd /opt/sjtweb-runtime
-
-# 先停容器，释放 8080
-docker compose down
-
-# 启动旧服务
-systemctl enable --now sjtwebserver
-
-curl -I http://127.0.0.1:8080/
-```
-
-外部验证：
+只回滚内容，不动镜像和容器：
 
 ```bash
-curl --noproxy '*' -I http://39.106.115.254:8080/
+ssh deploy@39.106.115.254 '
+  cd /opt/sjtweb-runtime
+  rsync -a --delete www.prev/ www/
+'
+curl -fsS http://127.0.0.1:8080/
 ```
+
+只有一份 `www.prev`。重要发布前另行留档。不能用 `mv www.prev www` 替换目录：容器的 bind mount 指向 `www`，替换目录会让容器继续看着旧 inode。
 
 ## 回滚后确认
 
 ```bash
-systemctl is-active sjtwebserver
-systemctl is-enabled sjtwebserver
+cd /opt/sjtweb-runtime
 docker compose ps
 ss -ltnp | grep ':8080'
+curl -fsS http://127.0.0.1:8080/
 ```
 
-- 容器和 systemd 只能有一个占用 8080；
-- 回滚到 systemd 后，systemd 会重新开机自启；
-- 再切回容器：
-
-```bash
-systemctl stop sjtwebserver
-systemctl disable sjtwebserver
-cd /opt/sjtweb-runtime
-docker compose up -d
-```
+旧 systemd unit 已停用，旧 `deploy/` 脚本已删除；不再提供 systemd 回滚路径。
 
 ## 记录
 

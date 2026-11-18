@@ -1,2 +1,1 @@
-PyYAML>=6.0
-Pygments>=2.14
+mkdocs-material==9.8.1

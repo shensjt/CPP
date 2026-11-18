@@ -1,0 +1,55 @@
+site_name: SJT
+site_author: SJT
+site_url: http://39.106.115.254:8080/
+repo_url: https://github.com/shensjt/CPP
+copyright: Copyright &copy; 2026 SJT
+use_directory_urls: true
+docs_dir: content
+site_dir: ../build/www
+
+theme:
+  name: material
+  language: zh
+  # Material 默认从 Google Fonts 加载 Roboto，国内可能不可达
+  font: false
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: 深色模式
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: 浅色模式
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+validation:
+  links:
+    not_found: warn
+    absolute_links: warn
+    unrecognized_links: warn
+    anchors: warn
+
+strict: true

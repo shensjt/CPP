@@ -61,24 +61,29 @@ TcpServer
 - [v0.3.0](doc/releases/v0.3.0.md)：CI/CD 与容器化
 - [v0.4.0](doc/releases/v0.4.0.md)：HTTP 正确性、缓存协商、可观测性、优雅停机
 
-仓库只保存源码、模板、测试、部署配置和一篇演示文章；`build/www/` 是构建产物，不入库。
+仓库只保存源码、站点配置、测试、部署配置和演示文章；`build/www/` 是构建产物，不入库。
 
 ## 环境要求
 
 - Linux / macOS，C++17 编译器，CMake ≥ 3.16
-- Python 3 + PyYAML + Pygments（生成博客）
+- Python 3 + MkDocs Material（生成博客，建议使用 venv）
 
 Ubuntu/Debian：
 
 ```bash
-sudo apt install build-essential cmake python3-yaml python3-pygments
+sudo apt install build-essential cmake python3 python3-venv
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r blog/requirements.txt
 ```
 
 macOS：
 
 ```bash
 brew install cmake python3
-pip3 install -r blog/requirements.txt
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r blog/requirements.txt
 ```
 
 ## 快速开始
@@ -88,7 +93,7 @@ git clone https://github.com/shensjt/CPP.git
 cd CPP
 
 # 1. 生成演示站点
-python3 blog/scripts/build.py
+make blog
 
 # 2. 编译服务器
 cmake -S . -B build/server -DCMAKE_BUILD_TYPE=Release
@@ -109,49 +114,50 @@ make server
 make run
 ```
 
-自己的文章不放进公开仓库，放在本地 `docs/blog/`（已 gitignore），构建时指定内容目录：
+自己的文章不放进公开仓库，放在本地 `blog/content/`（已 gitignore）：
 
 ```bash
-python3 blog/scripts/build.py --content docs/blog
-# 或
-make blog-local
+make blog-local   # 构建到 build/www
+make serve        # 本地预览
 ```
 
-`build/www/` 是构建产物，不入库。干净 clone 后必须先跑 `build.py`，否则服务器没有可发的内容。
+`build/www/` 是构建产物，不入库。干净 clone 后先跑 `make blog` 生成演示站，否则服务器没有可发的内容。
 
 ## 博客构建链路
 
 ```text
-blog/demo/posts/**/*.md     仓库演示内容
-docs/blog/posts/**/*.md     本地真实内容（gitignore）
+blog/demo/**/*.md          仓库演示内容
+blog/content/**/*.md       本地真实内容（gitignore）
         │
-        │ blog/scripts/build.py
-        │   解析 front matter → Markdown 转 HTML
-        │   套 post.html → base.html
+        │ mkdocs build -f blog/mkdocs*.yml
+        │   Markdown → HTML / 搜索 / sitemap
         ▼
-build/www/    首页/栏目页/文章页/CSS（构建产物，不入库）
+build/www/    首页/分块/文章/资源（构建产物，不入库）
         │
         │ web_server --root build/www
         ▼
 浏览器
 ```
 
-- 演示内容：`blog/demo/posts/**/*.md`、`blog/demo/about.md`
-- 个人内容：`docs/blog/`（本地，gitignore）
-- 模板：`blog/templates/`
+- 演示内容：`blog/demo/`
+- 个人内容：`blog/content/`（本地，gitignore）
+- 配置：`blog/mkdocs.yml`、`blog/mkdocs-demo.yml`
 - 输出：`build/www/`
 - 构建依赖：[blog/requirements.txt](blog/requirements.txt)
 - 详细说明：[blog/README.md](blog/README.md)
-- 部署：`rsync -avz --delete build/www/ user@host:/opt/sjtwebserver/www/`
+- 发布：`make publish`（构建 + 快照 + rsync + smoke）
 
-> 仓库里只有一篇演示文章；真实文章放本地 `docs/blog/`，用 `--content docs/blog` 构建，不会进公开仓库。
+> 仓库里只有演示内容；真实文章放本地 `blog/content/`，不会进公开仓库。
 
 ## Docker（本地）
 
 构建：
 
 ```bash
-docker build --build-arg APT_MIRROR=mirrors.aliyun.com -t sjtwebserver:dev .
+docker build \
+  --build-arg APT_MIRROR=mirrors.aliyun.com \
+  --build-arg PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/ \
+  -t sjtwebserver:dev .
 ```
 
 运行：
@@ -163,7 +169,9 @@ docker run --rm -p 127.0.0.1:8080:8080 sjtwebserver:dev
 或使用 compose：
 
 ```bash
-APT_MIRROR=mirrors.aliyun.com docker compose up --build -d
+APT_MIRROR=mirrors.aliyun.com \
+PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/ \
+docker compose up --build -d
 docker compose ps
 curl -f http://127.0.0.1:8080/
 docker compose down
@@ -172,7 +180,7 @@ docker compose down
 - 镜像包含 `web_server` 与 `blog/demo` 生成的 `www`；
 - 容器内监听 `0.0.0.0:8080`，宿主机只发布到 `127.0.0.1`；
 - 运行用户是 `app`（UID 10001），不是 root；
-- `APT_MIRROR` 只影响构建阶段，默认 `archive.ubuntu.com`，国内可用 `mirrors.aliyun.com`。
+- `APT_MIRROR` 和 `PIP_INDEX_URL` 只影响构建阶段；国内可分别用 `mirrors.aliyun.com` 和 `https://mirrors.aliyun.com/pypi/simple/`。
 
 ## 测试
 
@@ -344,15 +352,13 @@ projects/kv_store/
   aof/             AOF 追加、刷盘、回放
   server/          KvServer
   bench/           bench_kv 压测客户端
-blog/              博客源文件、模板、构建脚本
+blog/              MkDocs 内容站配置、演示内容
 tests/             单元/集成测试
-deploy/            旧 systemd 部署脚本（当前停用）
 doc/               项目工程文档
   architecture.md  架构与关键决策
   releases/        发布记录
   incidents/       故障复盘
   runbooks/        部署与回滚
-CLAUDE.md          协作约定
 Dockerfile         多阶段镜像构建
 .dockerignore      构建上下文排除
 compose.yaml       本地容器编排
@@ -382,24 +388,23 @@ KV Store：
 
 其他：
 
-- 博客仓库只带一篇演示文章，真实内容在本地 `docs/blog/` 维护
+- 博客仓库只带演示内容，真实内容在本地 `blog/content/` 维护
 
 ## 部署
 
 当前生产使用 Docker Compose：
 
 - 运行目录：`/opt/sjtweb-runtime`
-- 内容目录：`/opt/sjtwebserver/projects/web_server/www`
+- 内容目录：`/opt/sjtweb-runtime/www`
 - 入口：`http://39.106.115.254:8080`
 - 镜像：阿里云 ACR，tag 为 `sha-<commit>`
 - CD：合并 `main` 后自动构建、推送、部署、smoke
+- 内容发布：本地 `make publish`，rsync 到内容目录，不重启容器
 
 部署与回滚：
 
 - [doc/runbooks/deploy.md](doc/runbooks/deploy.md)
 - [doc/runbooks/rollback.md](doc/runbooks/rollback.md)
-
-`deploy/` 下的 systemd 脚本是旧部署方式，当前停用，保留作回滚兜底。
 
 ## 链接
 

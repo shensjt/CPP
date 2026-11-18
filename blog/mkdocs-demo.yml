@@ -1,0 +1,4 @@
+INHERIT: mkdocs.yml
+docs_dir: demo
+site_dir: ../build/demo-www
+site_name: SJTWebServer Demo

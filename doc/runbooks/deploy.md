@@ -7,21 +7,19 @@
 ## 服务器布局
 
 ```text
-/opt/sjtwebserver/
-  projects/web_server/www/   真实静态内容，容器只读挂载
-  build/server/web_server    systemd 旧二进制，当前未使用
-  ...                        源码仓库
-
 /opt/sjtweb-runtime/
   compose.yaml               生产 compose
   .env                       IMAGE_TAG=sha-<commit>
   .env.prev                  CD 部署前备份
+  www/                       发布目录，容器只读挂载
+  www.prev/                  上一次内容发布快照
 
-systemd：sjtwebserver 已 stop / disable，unit 文件保留作回滚兜底
 Caddy：未安装
 ```
 
-`/opt/sjtweb-runtime` 及 `.env` 归 `deploy` 用户所有；容器以 `app`（UID 10001）运行，只读挂载内容目录。
+旧 systemd unit 已停用；`/opt/sjtwebserver` 旧目录如仍存在，只是历史残留，可手动清理。
+
+`/opt/sjtweb-runtime`、`.env` 和 `www/` 归 `deploy` 用户所有；容器以 `app`（UID 10001）运行，只读挂载内容目录。
 
 ## 镜像
 
@@ -51,7 +49,7 @@ deploy
   → docker compose pull
   → docker compose up -d
   → curl /healthz，校验 commit
-  → curl / 和 /css/style.css
+  → curl / 和 /sitemap.xml
   → 失败：恢复 .env.prev 并 up -d
 ```
 
@@ -75,10 +73,30 @@ docker compose up -d
 
 curl -fsS http://127.0.0.1:8080/healthz
 curl -fsS http://127.0.0.1:8080/ >/dev/null
-curl -fsS http://127.0.0.1:8080/css/style.css >/dev/null
+curl -fsS http://127.0.0.1:8080/sitemap.xml >/dev/null
 ```
 
 `/healthz` 的 `commit` 应与 `.env` 里 `IMAGE_TAG` 去掉 `sha-` 前缀后的值一致。
+
+## 内容发布
+
+内容由本地 MkDocs 构建，不走镜像和 CD：
+
+```bash
+make publish
+```
+
+脚本流程：
+
+```text
+mkdocs build --strict
+→ 快照 www → www.prev
+→ rsync --delete-after --delay-updates
+→ curl / 和 /sitemap.xml
+→ 失败：rsync www.prev 回 www
+```
+
+不重启容器。详见 [publish-content.md](publish-content.md)。
 
 ## 验证
 
@@ -88,6 +106,7 @@ cat .env
 docker compose ps
 curl -s http://127.0.0.1:8080/healthz
 curl -I http://127.0.0.1:8080/
+curl -I http://127.0.0.1:8080/sitemap.xml
 
 # 外部
 curl --noproxy '*' -I http://39.106.115.254:8080/
@@ -147,7 +166,8 @@ docker compose logs --tail=100
 
 LRU 会按 mtime/size 失效，正常情况下内容发布后不需要重启容器。先检查：
 
-- 内容目录是否已更新；
+- `make publish` 是否成功；
+- `/opt/sjtweb-runtime/www` 是否已更新；
 - 浏览器是否缓存（强制刷新）；
 - 容器挂载路径是否正确。
 
@@ -157,6 +177,17 @@ LRU 会按 mtime/size 失效，正常情况下内容发布后不需要重启容�
 cd /opt/sjtweb-runtime
 docker compose restart web
 ```
+
+### 线上出现 demo
+
+检查容器实际挂载：
+
+```bash
+cd /opt/sjtweb-runtime
+docker inspect "$(docker compose ps -q web)" --format '{{json .Mounts}}'
+```
+
+期望 `Type` 是 `bind`、`Source` 是 `/opt/sjtweb-runtime/www`、`RW` 是 `false`。如果配成了 named volume，Docker 会把镜像里的 demo 复制进去，宿主机 rsync 的文件不会被看到。
 
 ### 8080 被占用
 
