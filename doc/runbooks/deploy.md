@@ -98,6 +98,15 @@ curl --noproxy '*' -I http://39.106.115.254:8080/
 - `.env` 里的 `IMAGE_TAG` 与 `docker compose ps` 的 image tag 一致；
 - `/healthz` 的 `commit` 与 `IMAGE_TAG` 去掉 `sha-` 后一致。
 
+## 停机
+
+```bash
+cd /opt/sjtweb-runtime
+docker compose stop web
+```
+
+`docker stop` 发送 SIGTERM：服务停止 accept、等待 worker 退出、刷新日志后退出。默认 grace period 内应正常结束。
+
 ## 常见故障
 
 ### ACR 认证连接被重置

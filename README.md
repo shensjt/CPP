@@ -16,6 +16,7 @@
 ## Web Server · 功能
 
 - 线程池 + 阻塞队列，任务投递与优雅停机
+- SIGTERM 优雅停机：停止 accept、等待 worker 退出、刷新日志
 - epoll 事件循环，非阻塞 IO，`EPOLLONESHOT` 下 worker 拥有连接
 - 分段 Buffer，`readv` 读取，处理半包/粘包
 - HTTP/1.1 请求解析：请求行、Headers、Body 状态机

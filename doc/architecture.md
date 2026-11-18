@@ -71,7 +71,8 @@ worker
 - `InFlight` 标记连接是否正在处理，空闲扫描据此跳过；
 - 每条连接有一把 `recursive_mutex`，覆盖 `HandleEvents + Rearm` 和关闭路径；
 - 关闭顺序：从连接表移除 → `Close()`（epoll Del，fd 暂存）→ `close_callback_` → `CloseFd()`；
-- 连接表由 `connections_mutex_` 保护，worker 持有 `shared_ptr` 保证生命周期。
+- 连接表由 `connections_mutex_` 保护，worker 持有 `shared_ptr` 保证生命周期；
+- 主线程用 `sigtimedwait` 处理 SIGINT/SIGTERM；`Stop()` 后 Start 返回，worker join，最后刷新日志。
 
 ### KV Store
 
