@@ -19,3 +19,41 @@ jobs:
 
       - name: Verify
         run: make verify
+
+  asan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake
+
+      - name: ASan/UBSan
+        run: |
+          cmake -S tests -B build/asan -DENABLE_ASAN=ON
+          cmake --build build/asan -j
+          ctest --test-dir build/asan --output-on-failure
+
+  tsan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake
+
+      # 新内核 ASLR 熵较高时 TSan 会报 unexpected memory mapping
+      - name: Relax ASLR for TSan
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
+      - name: TSan
+        run: |
+          cmake -S tests -B build/tsan -DENABLE_TSAN=ON
+          cmake --build build/tsan -j
+          ctest --test-dir build/tsan --output-on-failure
