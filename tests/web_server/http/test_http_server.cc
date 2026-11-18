@@ -362,3 +362,22 @@ TEST(HttpServer_ConcurrentClients) {
         std::cerr << "bad response: [" << bad_response << "]\n";
     }
 }
+
+// HS9：Body 超过上限返回 413。
+TEST(HttpServer_RequestTooLarge) {
+    TempDir dir;
+    dir.Write("index.html", "home");
+    ServerGuard guard(dir.path.string());
+
+    Client client;
+    CHECK(client.Connect(guard.server.Port()));
+    CHECK(client.Send(
+        "POST / HTTP/1.1\r\n"
+        "Host: x\r\n"
+        "Content-Length: 2000000\r\n"
+        "\r\n"));
+
+    std::string response;
+    CHECK(client.ReadResponse(false, response));
+    CHECK(response.rfind("HTTP/1.1 413 Payload Too Large", 0) == 0);
+}

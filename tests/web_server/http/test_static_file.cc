@@ -51,6 +51,18 @@ HttpRequest MakeRequest(const std::string& target,
     return request;
 }
 
+std::string ResponseHeader(const HttpResponse& response,
+                           const std::string& name) {
+    const std::string wire = response.ToString();
+    const std::string needle = "\r\n" + name + ": ";
+    const std::size_t pos = wire.find(needle);
+    if (pos == std::string::npos) return {};
+
+    const std::size_t begin = pos + needle.size();
+    const std::size_t end = wire.find("\r\n", begin);
+    return wire.substr(begin, end - begin);
+}
+
 }  // namespace
 
 // SF1："/" 映射到 index.html。
@@ -231,4 +243,98 @@ TEST(StaticFile_SymlinkEscape) {
 
     StaticFileHandler handler(dir.path.string());
     CHECK_EQ(handler.Handle(MakeRequest("/link")).StatusCode(), 403);
+}
+
+// SF16：200 响应带缓存头。
+TEST(StaticFile_CacheHeaders) {
+    TempDir dir;
+    dir.Write("index.html", "home");
+
+    StaticFileHandler handler(dir.path.string());
+    const HttpResponse response = handler.Handle(MakeRequest("/index.html"));
+
+    CHECK_EQ(response.StatusCode(), 200);
+    CHECK(!ResponseHeader(response, "ETag").empty());
+    CHECK(!ResponseHeader(response, "Last-Modified").empty());
+    CHECK_EQ(ResponseHeader(response, "Cache-Control"), std::string("no-cache"));
+}
+
+// SF17：If-None-Match 命中返回 304。
+TEST(StaticFile_NotModifiedEtag) {
+    TempDir dir;
+    dir.Write("index.html", "home");
+
+    StaticFileHandler handler(dir.path.string());
+    const HttpResponse first = handler.Handle(MakeRequest("/index.html"));
+    const std::string etag = ResponseHeader(first, "ETag");
+    CHECK(!etag.empty());
+
+    HttpRequest request = MakeRequest("/index.html");
+    // 多值 + 弱 ETag 语法都要能匹配。
+    request.headers["if-none-match"] = "\"other\", W/" + etag;
+    const HttpResponse second = handler.Handle(request);
+
+    CHECK_EQ(second.StatusCode(), 304);
+    CHECK(second.Body().empty());
+    CHECK_EQ(ResponseHeader(second, "ETag"), etag);
+    const std::string wire = second.ToString();
+    CHECK(wire.find("304 Not Modified") != std::string::npos);
+    CHECK(wire.find("Content-Length") == std::string::npos);
+}
+
+// SF18：If-Modified-Since 命中返回 304。
+TEST(StaticFile_NotModifiedSince) {
+    TempDir dir;
+    dir.Write("index.html", "home");
+
+    StaticFileHandler handler(dir.path.string());
+    const HttpResponse first = handler.Handle(MakeRequest("/index.html"));
+    const std::string last_modified = ResponseHeader(first, "Last-Modified");
+    CHECK(!last_modified.empty());
+
+    HttpRequest request = MakeRequest("/index.html");
+    request.headers["if-modified-since"] = last_modified;
+    CHECK_EQ(handler.Handle(request).StatusCode(), 304);
+}
+
+// SF19：文件更新后旧 ETag 不再命中。
+TEST(StaticFile_EtagChangesAfterWrite) {
+    TempDir dir;
+    dir.Write("index.html", "old");
+
+    StaticFileHandler handler(dir.path.string());
+    const std::string old_etag =
+        ResponseHeader(handler.Handle(MakeRequest("/index.html")), "ETag");
+    CHECK(!old_etag.empty());
+
+    dir.Write("index.html", "new-content");
+
+    HttpRequest request = MakeRequest("/index.html");
+    request.headers["if-none-match"] = old_etag;
+    const HttpResponse response = handler.Handle(request);
+
+    CHECK_EQ(response.StatusCode(), 200);
+    CHECK_EQ(response.Body(), std::string("new-content"));
+    CHECK(ResponseHeader(response, "ETag") != old_etag);
+}
+
+// SF20：HEAD 条件请求同样返回 304，且没有 body/Content-Length。
+TEST(StaticFile_HeadNotModified) {
+    TempDir dir;
+    dir.Write("index.html", "home");
+
+    StaticFileHandler handler(dir.path.string());
+    const HttpResponse first = handler.Handle(MakeRequest("/index.html"));
+    const std::string etag = ResponseHeader(first, "ETag");
+    CHECK(!etag.empty());
+
+    HttpRequest request =
+        MakeRequest("/index.html", HttpRequest::Method::kHead);
+    request.headers["if-none-match"] = etag;
+    const HttpResponse second = handler.Handle(request);
+
+    CHECK_EQ(second.StatusCode(), 304);
+    const std::string wire = second.ToString(true);
+    CHECK(wire.find("Content-Length") == std::string::npos);
+    CHECK(wire.find("\r\n\r\n") == wire.size() - 4);
 }

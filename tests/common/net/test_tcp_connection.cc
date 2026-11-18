@@ -142,3 +142,38 @@ TEST(TcpConnection_MultipleRoundTrips) {
         CHECK_EQ(echoed, msg);
     }
 }
+
+// TC5：对端不读，写缓冲超过上限后关闭连接。
+TEST(TcpConnection_WriteBufferCap) {
+    FdPair pair;
+    Epoll epoll;
+    TcpConnection conn(&epoll, pair.Release(0));
+
+    const std::string chunk(64 * 1024, 'x');
+    for (int i = 0; i < 512 && conn.Connected(); ++i) {
+        conn.Send(chunk);
+    }
+
+    CHECK(!conn.Connected());
+    CHECK_EQ(conn.Fd(), -1);
+}
+
+// TC6：对端持续发送，读缓冲超过上限后关闭连接。
+TEST(TcpConnection_ReadBufferCap) {
+    FdPair pair;
+    Epoll epoll;
+    TcpConnection conn(&epoll, pair.Release(0));
+
+    const std::string chunk(64 * 1024, 'x');
+    bool closed = false;
+    for (int i = 0; i < 64; ++i) {
+        if (!WriteAll(pair.fds[1], chunk.data(), chunk.size())) break;
+        if (!conn.HandleRead()) {
+            closed = true;
+            break;
+        }
+    }
+
+    CHECK(closed);
+    CHECK(!conn.Connected());
+}
