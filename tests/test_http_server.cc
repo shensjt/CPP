@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
+#include <mutex>
 #include <string>
 #include <system_error>
 #include <thread>
@@ -64,6 +65,7 @@ struct ServerGuard {
 
 struct Client {
     int fd = -1;
+    int last_errno = 0;
     std::string buffer;
 
     ~Client() {
@@ -107,8 +109,12 @@ struct Client {
 
     bool Fill() {
         char buf[4096];
+        errno = 0;
         const ssize_t n = ::recv(fd, buf, sizeof(buf), 0);
-        if (n <= 0) return false;
+        if (n <= 0) {
+            last_errno = errno;
+            return false;
+        }
         buffer.append(buf, static_cast<std::size_t>(n));
         return true;
     }
@@ -302,25 +308,57 @@ TEST(HttpServer_ConcurrentClients) {
     ServerGuard guard(dir.path.string());
 
     constexpr int kClients = 8;
-    std::atomic<int> failures{0};
+    std::atomic<int> connect_failures{0};
+    std::atomic<int> send_failures{0};
+    std::atomic<int> read_failures{0};
+    std::atomic<int> status_failures{0};
+    std::mutex bad_response_mutex;
+    std::string bad_response;
     std::vector<std::thread> threads;
 
     for (int i = 0; i < kClients; ++i) {
         threads.emplace_back([&] {
             Client client;
-            if (!client.Connect(guard.server.Port()) ||
-                !client.Send("GET / HTTP/1.1\r\nHost: x\r\n\r\n")) {
-                failures.fetch_add(1);
+            if (!client.Connect(guard.server.Port())) {
+                connect_failures.fetch_add(1);
+                return;
+            }
+            if (!client.Send("GET / HTTP/1.1\r\nHost: x\r\n\r\n")) {
+                send_failures.fetch_add(1);
                 return;
             }
             std::string response;
-            if (!client.ReadResponse(false, response) ||
-                response.rfind("HTTP/1.1 200 OK", 0) != 0) {
-                failures.fetch_add(1);
+            if (!client.ReadResponse(false, response)) {
+                read_failures.fetch_add(1);
+                std::lock_guard<std::mutex> lock(bad_response_mutex);
+                if (bad_response.empty()) {
+                    sockaddr_in local{};
+                    socklen_t len = sizeof(local);
+                    ::getsockname(client.fd,
+                                  reinterpret_cast<sockaddr*>(&local), &len);
+                    bad_response = "READ_FAIL fd=" +
+                                   std::to_string(client.fd) + " port=" +
+                                   std::to_string(ntohs(local.sin_port)) +
+                                   " errno=" +
+                                   std::to_string(client.last_errno) +
+                                   " buffer=[" + client.buffer + "]";
+                }
+                return;
+            }
+            if (response.rfind("HTTP/1.1 200 OK", 0) != 0) {
+                status_failures.fetch_add(1);
+                std::lock_guard<std::mutex> lock(bad_response_mutex);
+                if (bad_response.empty()) bad_response = response;
             }
         });
     }
     for (auto& t : threads) t.join();
 
-    CHECK_EQ(failures.load(), 0);
+    CHECK_EQ(connect_failures.load(), 0);
+    CHECK_EQ(send_failures.load(), 0);
+    CHECK_EQ(read_failures.load(), 0);
+    CHECK_EQ(status_failures.load(), 0);
+    if (!bad_response.empty()) {
+        std::cerr << "bad response: [" << bad_response << "]\n";
+    }
 }

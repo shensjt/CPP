@@ -20,12 +20,12 @@ if [ -z "${CONTENT:-}" ]; then
   fi
 fi
 
-python3 blog/scripts/build.py --content "${CONTENT}"
+python3 blog/scripts/build.py --content "${CONTENT}" --out build/www
 
 cmake -S . -B build/server -DCMAKE_BUILD_TYPE=Release
 cmake --build build/server -j
 
-rsync -avz --delete projects/web_server/www/ "${SSH_TARGET}:${REMOTE_ROOT}/www/"
+rsync -avz --delete build/www/ "${SSH_TARGET}:${REMOTE_ROOT}/www/"
 rsync -avz build/server/web_server "${SSH_TARGET}:${REMOTE_ROOT}/bin/web_server.new"
 
 ssh "${SSH_TARGET}" "

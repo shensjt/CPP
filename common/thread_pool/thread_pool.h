@@ -9,8 +9,9 @@
 #include <utility>
 #include <vector>
 
-// 任务队列：Push 到队尾，Pop 从队头取。
-// Close 之后 Push 返回 false；已入队的任务仍会被 Pop 取完。
+// 固定容量的任务队列（实际上没有容量上限）。
+// 生产者：Push；消费者：Pop / TryPop。
+// 关闭语义：Close 之后 Push 返回 false；已入队的任务仍会被 Pop 取完。
 template <class T>
 class BlockingQueue {
 public:
@@ -20,6 +21,7 @@ public:
     BlockingQueue(const BlockingQueue&) = delete;
     BlockingQueue& operator=(const BlockingQueue&) = delete;
 
+    // 入队；队列已关闭时返回 false。
     bool Push(const T& value) {
         {
             std::lock_guard<std::mutex> lg(mutex_);
@@ -36,6 +38,7 @@ public:
     // 阻塞到有任务或 Close；返回 false 表示队列已关闭且为空。
     bool Pop(T& value) {
         std::unique_lock<std::mutex> ul(mutex_);
+        // 谓词防止虚假唤醒；关闭后即使没任务也要醒。
         not_empty_.wait(ul, [this] { return closed_ || !queue_.empty(); });
 
         if (queue_.empty()) {
@@ -46,6 +49,7 @@ public:
         return true;
     }
 
+    // 非阻塞取任务；空队列返回 false。
     bool TryPop(T& value) {
         std::lock_guard<std::mutex> lg(mutex_);
         if (queue_.empty()) {
@@ -73,6 +77,16 @@ private:
 };
 
 // 固定线程数的线程池：Post 投递任务，析构时 Close + join。
+//
+// 线程模型：
+// - 构造时启动 capacity_ 个 worker，每个 worker 阻塞在 BlockingQueue::Pop；
+// - Post 把可调用对象 bind 成 std::function<void()> 入队；
+// - 析构先 Close，worker 把队列剩余任务执行完后退出，再逐个 join。
+//
+// 当前限制：
+// - 队列无界，没有拒绝策略/背压；
+// - 线程数固定，不支持动态扩缩容；
+// - 任务没有返回值，不支持 future。
 class ThreadPool {
 public:
     explicit ThreadPool(size_t c) : capacity_(c) {
@@ -82,6 +96,7 @@ public:
     }
 
     ~ThreadPool() {
+        // 先关闭队列，再 join；worker 会把已入队任务取完。
         tasks_.Close();
         for (auto& worker : workers_) {
             if (worker.joinable()) {
@@ -98,6 +113,7 @@ public:
     }
 
 private:
+    // worker 主循环：Pop 失败（关闭且为空）才退出。
     void work() {
         while (true) {
             std::function<void()> task;
@@ -107,7 +123,7 @@ private:
             try {
                 task();
             } catch (...) {
-                // TODO: 接入日志后记录异常
+                // 单个任务异常不能杀死 worker；TODO: 接入日志后记录。
             }
         }
     }

@@ -1,0 +1,87 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [fast-track, main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake python3-yaml python3-pygments
+
+      - name: Verify
+        run: make verify
+
+  asan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake
+
+      - name: ASan/UBSan
+        run: |
+          cmake -S tests -B build/asan -DENABLE_ASAN=ON
+          cmake --build build/asan -j
+          ctest --test-dir build/asan --output-on-failure
+
+  tsan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake
+
+      # 新内核 ASLR 熵较高时 TSan 会报 unexpected memory mapping
+      - name: Relax ASLR for TSan
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
+      - name: TSan
+        run: |
+          cmake -S tests -B build/tsan -DENABLE_TSAN=ON
+          cmake --build build/tsan -j
+          ctest --test-dir build/tsan --output-on-failure
+
+  docker:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t sjtwebserver:ci .
+
+      - name: Smoke test
+        run: |
+          docker run -d --rm --name sjtweb-ci -p 127.0.0.1:18080:8080 sjtwebserver:ci
+          for i in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:18080/ >/dev/null && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:18080/ >/dev/null
+          curl -fsS http://127.0.0.1:18080/css/style.css >/dev/null
+          docker logs sjtweb-ci
+
+      - name: Container logs
+        if: failure()
+        run: docker logs sjtweb-ci || true
+
+      - name: Stop container
+        if: always()
+        run: docker stop sjtweb-ci || true

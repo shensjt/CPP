@@ -6,6 +6,9 @@
 #include <utility>
 #include <vector>
 
+// 已有 member 改分时，跳表里的排序 key 变了：
+// 先删旧的 (old_score, member)，再插新的 (score, member)。
+// score 没变则完全不动，返回 kUnchanged，调用方据此跳过 AOF。
 ZSet::AddResult ZSet::Add(double score, const std::string& member) {
     const auto it = scores_.find(member);
     if (it != scores_.end()) {

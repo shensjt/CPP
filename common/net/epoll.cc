@@ -12,6 +12,7 @@ namespace {
 
 }  // namespace
 
+// EPOLL_CLOEXEC：exec 后自动关闭 epoll fd，避免子进程继承。
 Epoll::Epoll() : epoll_fd_(::epoll_create1(EPOLL_CLOEXEC)) {
     if (epoll_fd_ < 0) {
         ThrowSystem("epoll_create1");
@@ -27,7 +28,7 @@ Epoll::~Epoll() {
 void Epoll::Add(int fd, std::uint32_t events) {
     epoll_event ev{};
     ev.events = events;
-    ev.data.fd = fd;  // 内核在 Wait 返回时原样带回
+    ev.data.fd = fd;  // 内核在 Wait 返回时原样带回，上层据此找到连接
     if (::epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &ev) < 0) {
         ThrowSystem("epoll_ctl(ADD)");
     }
@@ -36,7 +37,7 @@ void Epoll::Add(int fd, std::uint32_t events) {
 void Epoll::Mod(int fd, std::uint32_t events) {
     epoll_event ev{};
     ev.events = events;
-    ev.data.fd = fd;
+    ev.data.fd = fd;  // MOD 也要重新填，保持 data 一致
     if (::epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &ev) < 0) {
         ThrowSystem("epoll_ctl(MOD)");
     }
@@ -54,13 +55,15 @@ int Epoll::Wait(std::vector<epoll_event>& events, int timeout_ms) {
         return 0;
     }
 
+    // epoll_wait 返回就绪事件数；事件内容写进 events[0, n)。
     const int n = ::epoll_wait(epoll_fd_, events.data(),
                                static_cast<int>(events.size()), timeout_ms);
     if (n >= 0) {
         return n;
     }
     if (errno == EINTR) {
-        return 0;  // 交给调用方判断是否继续
+        // 被信号打断不是错误：返回 0，让事件循环检查 running_ 等退出标志。
+        return 0;
     }
     ThrowSystem("epoll_wait");
 }

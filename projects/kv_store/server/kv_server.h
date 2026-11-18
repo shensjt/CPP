@@ -10,7 +10,18 @@
 #include "store/kv_store.h"
 
 // KV 服务：TcpServer（epoll + 线程池） + RESP 解析 + 命令执行。
-// 同一连接的半包由 Buffer 保留；不同连接由线程池并发处理。
+//
+// 请求链路：
+//   TcpServer -> worker -> resp::Parser -> CommandHandler -> KvStore -> Aof
+//
+// 半包：RESP 解析器无状态，NeedMore 时 Buffer 不动，不需要 per-connection parser。
+//
+// 启动顺序（aof_path 非空时）：
+//   Replay -> Aof::Start（截断尾部）-> store_.SetAof -> server_.Start
+// 先恢复数据，再对外服务；回放期间不能挂 AOF，否则边读边写。
+//
+// 停机顺序由成员析构保证：
+//   server_（join worker）-> aof_（flush + fsync）-> KvStore
 class KvServer {
 public:
     KvServer(std::string ip, uint16_t port, std::size_t workers = 4,
