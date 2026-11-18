@@ -17,10 +17,12 @@ std::string ToLower(std::string text) {
 std::string ReasonPhrase(int status_code) {
     switch (status_code) {
         case 200: return "OK";
+        case 304: return "Not Modified";
         case 400: return "Bad Request";
         case 403: return "Forbidden";
         case 404: return "Not Found";
         case 405: return "Method Not Allowed";
+        case 413: return "Payload Too Large";
         case 500: return "Internal Server Error";
         default: return "Unknown";
     }
@@ -75,11 +77,14 @@ std::string HttpResponse::ToString(bool head_only) const {
         out << name << ": " << value << "\r\n";
     }
 
-    out << "Content-Length: " << body_.size() << "\r\n";
+    // 304 不允许带消息体；也不应发送与 200 不同的 Content-Length。
+    if (status_code_ != 304) {
+        out << "Content-Length: " << body_.size() << "\r\n";
+    }
     out << "Connection: " << (close_ ? "close" : "keep-alive") << "\r\n";
     out << "\r\n";
 
-    if (!head_only) {
+    if (!head_only && status_code_ != 304) {
         out << body_;
     }
     return out.str();

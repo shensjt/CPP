@@ -1,9 +1,12 @@
 #include "http/static_file_handler.h"
 
 #include <sys/stat.h>
+#include <time.h>
 
 #include <cctype>
 #include <cstdint>
+#include <cstdio>
+#include <ctime>
 #include <fstream>
 #include <iterator>
 #include <optional>
@@ -109,6 +112,86 @@ bool ReadFile(const fs::path& path, std::string& out) {
     return !in.bad();
 }
 
+std::string Trim(const std::string& text) {
+    std::size_t begin = 0;
+    while (begin < text.size() &&
+           std::isspace(static_cast<unsigned char>(text[begin]))) {
+        ++begin;
+    }
+    std::size_t end = text.size();
+    while (end > begin &&
+           std::isspace(static_cast<unsigned char>(text[end - 1]))) {
+        --end;
+    }
+    return text.substr(begin, end - begin);
+}
+
+// HTTP 日期固定用英文缩写，避免受进程 locale 影响。
+std::string FormatHttpDate(std::time_t time) {
+    std::tm tm{};
+    ::gmtime_r(&time, &tm);
+
+    static const char* kDays[] = {"Sun", "Mon", "Tue", "Wed",
+                                  "Thu", "Fri", "Sat"};
+    static const char* kMonths[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+
+    char buffer[64];
+    std::snprintf(buffer, sizeof(buffer), "%s, %02d %s %04d %02d:%02d:%02d GMT",
+                  kDays[tm.tm_wday], tm.tm_mday, kMonths[tm.tm_mon],
+                  tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec);
+    return buffer;
+}
+
+bool ParseHttpDate(const std::string& value, std::time_t& out) {
+    std::tm tm{};
+    const char* end =
+        ::strptime(value.c_str(), "%a, %d %b %Y %H:%M:%S GMT", &tm);
+    if (end == nullptr) return false;
+    while (*end == ' ') ++end;
+    if (*end != '\0') return false;
+
+    out = ::timegm(&tm);
+    return true;
+}
+
+std::string MakeETag(const struct stat& st) {
+    char buffer[128];
+    std::snprintf(buffer, sizeof(buffer), "\"%llx-%lx-%llx\"",
+                  static_cast<unsigned long long>(st.st_mtim.tv_sec),
+                  static_cast<unsigned long>(st.st_mtim.tv_nsec),
+                  static_cast<unsigned long long>(st.st_size));
+    return buffer;
+}
+
+bool EtagMatches(const std::string& header, const std::string& etag) {
+    std::size_t start = 0;
+    while (start <= header.size()) {
+        const std::size_t comma = header.find(',', start);
+        const std::string item = Trim(header.substr(
+            start, comma == std::string::npos ? std::string::npos : comma - start));
+
+        if (item == "*" || item == etag) return true;
+        if (item.size() > 2 && item.compare(0, 2, "W/") == 0 &&
+            item.substr(2) == etag) {
+            return true;
+        }
+
+        if (comma == std::string::npos) break;
+        start = comma + 1;
+    }
+    return false;
+}
+
+HttpResponse MakeNotModified(const std::string& etag,
+                             const std::string& last_modified) {
+    HttpResponse response(304);
+    response.SetHeader("ETag", etag);
+    response.SetHeader("Last-Modified", last_modified);
+    response.SetHeader("Cache-Control", "no-cache");
+    return response;
+}
+
 }  // namespace
 
 // 启动时就把 document root 规范化成绝对路径；
@@ -162,6 +245,26 @@ HttpResponse StaticFileHandler::Handle(const HttpRequest& request) const {
         return MakeError(404, "404 Not Found\n");
     }
 
+    const std::string etag = MakeETag(st);
+    const std::string last_modified = FormatHttpDate(st.st_mtime);
+
+    // If-None-Match 优先；只有它不存在时才看 If-Modified-Since。
+    const std::string if_none_match = request.GetHeader("If-None-Match");
+    if (!if_none_match.empty()) {
+        if (EtagMatches(if_none_match, etag)) {
+            return MakeNotModified(etag, last_modified);
+        }
+    } else {
+        const std::string if_modified_since =
+            request.GetHeader("If-Modified-Since");
+        std::time_t since = 0;
+        if (!if_modified_since.empty() &&
+            ParseHttpDate(if_modified_since, since) &&
+            st.st_mtime <= since) {
+            return MakeNotModified(etag, last_modified);
+        }
+    }
+
     const std::string key = candidate.string();
     CachedFile entry;
     const bool hit = cache_.Get(key, entry);
@@ -184,6 +287,9 @@ HttpResponse StaticFileHandler::Handle(const HttpRequest& request) const {
 
     HttpResponse response(200);
     response.SetContentType(MimeType(candidate.extension().string()));
+    response.SetHeader("ETag", etag);
+    response.SetHeader("Last-Modified", last_modified);
+    response.SetHeader("Cache-Control", "no-cache");
     response.SetBody(std::move(entry.body));
     return response;
 }
