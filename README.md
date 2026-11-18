@@ -174,7 +174,7 @@ cmake --build build/tests -j
 ctest --test-dir build/tests --output-on-failure
 ```
 
-当前 6 个测试可执行文件、198 个用例：
+当前 6 个测试可执行文件、200 个用例：
 
 - 线程池 / 阻塞队列
 - 内存池
@@ -360,7 +360,7 @@ Web Server：
 - 没有实现 sendfile，大文件仍走用户态缓冲
 - 内存池尚未接入 Web 服务器，目前作为独立组件
 - 当前没有域名和 TLS，直接 HTTP 8080
-- LRU 缓存没有失效机制，内容更新后需要重启容器
+- 读缓冲 2MB、写缓冲 8MB，超限直接关闭慢连接；没有完整的暂停/恢复背压
 - 没有限流、连接数上限和认证
 
 KV Store：

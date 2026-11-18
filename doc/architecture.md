@@ -44,7 +44,7 @@ web_server 容器（0.0.0.0:8080）
 | `projects/kv_store/command/` | 命令分发与参数校验 |
 | `projects/kv_store/aof/` | AOF 追加、fsync、回放、尾部修复 |
 | `projects/kv_store/server/` | `KvServer` 接入网络层 |
-| `tests/` | 6 个测试可执行文件、198 个用例 |
+| `tests/` | 6 个测试可执行文件、200 个用例 |
 | `blog/` | Markdown → HTML 构建 |
 | `deploy/` | 旧 systemd 部署脚本，当前停用 |
 
@@ -154,6 +154,10 @@ HTML 构建产物统一放在 `build/`，不写源码树。`make blog` 生成 `b
 
 写路径追加 AOF，后台每秒 fsync。吞吐优于 always，代价是崩溃最多丢约 1 秒数据。
 
+### 5.7 缓存一致性
+
+LRU 缓存项保存 `body + mtime + size`，命中后 `stat` 比对当前文件；不一致按 miss 处理。静态响应带 `ETag` / `Last-Modified` / `Cache-Control`，条件请求返回 304。内容更新后不需要重启容器。
+
 ## 6. 已知限制
 
 Web Server：
@@ -162,7 +166,7 @@ Web Server：
 - 没有 sendfile，大文件走用户态缓冲；
 - 没有限流、连接数上限和认证；
 - 内存池未接入 Web Server；
-- LRU 缓存没有失效机制，内容更新后需要重启容器。
+- 读缓冲 2MB、写缓冲 8MB，超限直接关闭连接；没有完整暂停/恢复背压。
 
 KV Store：
 
