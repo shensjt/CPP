@@ -1,6 +1,9 @@
 #include "http/static_file_handler.h"
 
+#include <sys/stat.h>
+
 #include <cctype>
+#include <cstdint>
 #include <fstream>
 #include <iterator>
 #include <optional>
@@ -152,19 +155,35 @@ HttpResponse StaticFileHandler::Handle(const HttpRequest& request) const {
         return MakeError(404, "404 Not Found\n");
     }
 
-    // 5. 先查 LRU；未命中读文件并回填。
+    // 5. stat 当前文件；LRU 命中后比对 mtime/size。
     // key 用规范化后的绝对路径，避免不同 URL 写法重复缓存同一文件。
+    struct stat st {};
+    if (::stat(candidate.c_str(), &st) != 0) {
+        return MakeError(404, "404 Not Found\n");
+    }
+
     const std::string key = candidate.string();
-    std::string body;
-    if (!cache_.Get(key, body)) {
+    CachedFile entry;
+    const bool hit = cache_.Get(key, entry);
+    const bool fresh =
+        hit && entry.size == static_cast<std::uintmax_t>(st.st_size) &&
+        entry.mtime_sec == st.st_mtim.tv_sec &&
+        entry.mtime_nsec == st.st_mtim.tv_nsec;
+
+    if (!fresh) {
+        std::string body;
         if (!ReadFile(candidate, body)) {
             return MakeError(500, "500 Internal Server Error\n");
         }
-        cache_.Put(key, body, body.size());
+        entry.body = std::move(body);
+        entry.mtime_sec = st.st_mtim.tv_sec;
+        entry.mtime_nsec = st.st_mtim.tv_nsec;
+        entry.size = static_cast<std::uintmax_t>(st.st_size);
+        cache_.Put(key, entry, entry.body.size());
     }
 
     HttpResponse response(200);
     response.SetContentType(MimeType(candidate.extension().string()));
-    response.SetBody(std::move(body));
+    response.SetBody(std::move(entry.body));
     return response;
 }

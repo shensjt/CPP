@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
+#include <ctime>
 #include <filesystem>
 #include <string>
 
@@ -18,7 +20,7 @@
 //
 // 缓存：
 // - 按字节数做 LRU，key 是规范化后的绝对路径；
-// - 文件更新后不会自动失效，需要重启或清缓存（已知限制）；
+// - 命中后比对 mtime/size，文件更新后自动失效；
 // - Handle 是 const，但 cache_ 是 mutable，读时也要写入缓存。
 class StaticFileHandler {
 public:
@@ -28,6 +30,13 @@ public:
     HttpResponse Handle(const HttpRequest& request) const;
 
 private:
+    struct CachedFile {
+        std::string body;
+        std::time_t mtime_sec = 0;
+        long mtime_nsec = 0;
+        std::uintmax_t size = 0;
+    };
+
     std::filesystem::path root_;
-    mutable LruCache<std::string, std::string> cache_;
+    mutable LruCache<std::string, CachedFile> cache_;
 };

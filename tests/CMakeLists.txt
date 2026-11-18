@@ -1,8 +1,18 @@
 # 测试目录 CMakeLists
 #
+# 目录按项目分层：
+#   framework/      test_main + test_framework
+#   common/         thread_pool / memory_pool / net / log
+#   web_server/     http / lru_cache
+#   kv_store/
+#
 # 每个组件一个测试可执行文件：
 #   threadpool_tests   —— BlockingQueue + ThreadPool
 #   memory_pool_tests  —— MemoryPool
+#   net_tests          —— Epoll / Buffer / TcpConnection / TcpServer
+#   log_tests          —— AsyncLogger
+#   web_server_tests   —— HTTP / LRU / HttpServer
+#   kv_tests           —— SkipList / RESP / KVStore / AOF / KvServer
 #
 # 正常构建：
 #   cmake -S tests -B build/tests
@@ -33,12 +43,13 @@ endif()
 
 enable_testing()
 
-# 每个组件一个可执行文件，共享 test_main.cc 和测试框架。
+# 每个组件一个可执行文件，共享 framework/test_main.cc 和测试框架。
 function(add_component_test name)
-    add_executable(${name} test_main.cc ${ARGN})
+    add_executable(${name} framework/test_main.cc ${ARGN})
 
     target_include_directories(${name} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/framework
         ${CMAKE_CURRENT_SOURCE_DIR}/../common
         ${CMAKE_CURRENT_SOURCE_DIR}/../projects/web_server
         ${CMAKE_CURRENT_SOURCE_DIR}/../projects/kv_store
@@ -69,39 +80,44 @@ function(add_component_test name)
     set_tests_properties(${name} PROPERTIES TIMEOUT 180)
 endfunction()
 
+# common/thread_pool
 add_component_test(threadpool_tests
-    test_blocking_queue.cc
-    test_thread_pool.cc
+    common/thread_pool/test_blocking_queue.cc
+    common/thread_pool/test_thread_pool.cc
 )
 
+# common/memory_pool
 add_component_test(memory_pool_tests
-    test_memory_pool.cc
+    common/memory_pool/test_memory_pool.cc
 )
 
+# common/net
 add_component_test(net_tests
-    test_epoll.cc
-    test_tcp_server.cc
-    test_tcp_server_pooled.cc
-    test_tcp_connection.cc
-    test_buffer.cc
+    common/net/test_epoll.cc
+    common/net/test_tcp_server.cc
+    common/net/test_tcp_server_pooled.cc
+    common/net/test_tcp_connection.cc
+    common/net/test_buffer.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/net/epoll.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/net/tcp_server.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/net/tcp_connection.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/net/buffer.cc
 )
 
+# common/log
 add_component_test(log_tests
-    test_async_logger.cc
+    common/log/test_async_logger.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/log/async_logger.cc
 )
 
+# projects/kv_store
 add_component_test(kv_tests
-    test_skiplist.cc
-    test_resp.cc
-    test_kv_store.cc
-    test_command_handler.cc
-    test_kv_server.cc
-    test_aof.cc
+    kv_store/test_skiplist.cc
+    kv_store/test_resp.cc
+    kv_store/test_kv_store.cc
+    kv_store/test_command_handler.cc
+    kv_store/test_kv_server.cc
+    kv_store/test_aof.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../projects/kv_store/protocol/resp.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../projects/kv_store/store/zset.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../projects/kv_store/store/kv_store.cc
@@ -115,12 +131,13 @@ add_component_test(kv_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/log/async_logger.cc
 )
 
+# projects/web_server
 add_component_test(web_server_tests
-    test_http_parser.cc
-    test_http_response.cc
-    test_static_file.cc
-    test_lru_cache.cc
-    test_http_server.cc
+    web_server/http/test_http_parser.cc
+    web_server/http/test_http_response.cc
+    web_server/http/test_static_file.cc
+    web_server/http/test_http_server.cc
+    web_server/lru_cache/test_lru_cache.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../projects/web_server/http/http_parser.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../projects/web_server/http/http_response.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../projects/web_server/http/static_file_handler.cc
