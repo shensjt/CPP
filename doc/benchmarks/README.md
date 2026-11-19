@@ -36,5 +36,8 @@ benchmarks/
 | 2026-11-19 | pilot | 非最终 | `8a9eecf` | IO 线程未饱和；4→8 worker QPS 不涨 |
 | 2026-11-19 | diagnosis | 诊断 | `8a9eecf` | 每请求 readlink ~5、newfstatat ~4、epoll_ctl ~1 |
 | 2026-11-20 | baseline | **正式** | `ee1f418` | IO 15.6–28.3%；4→8 worker QPS +15%，P99 恶化；先 request-path |
+| 2026-11-20 | B1 path cache | 已评估，不合并 | B1 分支 | readlink 0、stat 2/req；QPS/P99 收益不稳定 |
 
 A 阶段基线已完成，见 [2026-11-20-baseline.md](2026-11-20-baseline.md)。
+
+B1 已评估但不合并，见 [2026-11-20-b1-path.md](2026-11-20-b1-path.md)。
