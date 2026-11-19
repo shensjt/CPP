@@ -1,0 +1,15 @@
+Thu Nov 19 10:37:10 UTC 2026
+Linux shen 6.18.33.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun 18 21:54:43 UTC 2026 x86_64 GNU/Linux
+16
+CPU(s):                                  16
+On-line CPU(s) list:                     0-15
+Model name:                              AMD Ryzen 7 7840H w/ Radeon 780M Graphics
+Thread(s) per core:                      2
+Core(s) per socket:                      8
+Socket(s):                               1
+NUMA node0 CPU(s):                       0-15
+g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+commit=4e577c991467ad430e9e7b97bacafae423bce997
+server=/tmp/cpp-baseline/build/server/web_server
+root=build/bench-www host=127.0.0.1 port=18080 threads=4 cache_bytes=16777216
+path=/1mb.bin wrk_threads=4 connections=32 duration=30s runs=1 keep_alive=1
