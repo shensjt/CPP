@@ -170,8 +170,9 @@ AOF 回放耗时
 ```text
 1. 当前架构的 QPS / P50 / P99
 2. IO 线程是否饱和
-3. 主从 Reactor 是否值得做
-4. sendfile 是否需要评估
+3. request-path 优化是否值得做
+4. B4 主从 Reactor 是否值得做
+5. sendfile 是否需要评估
 ```
 
 IO 线程饱和的判断：
