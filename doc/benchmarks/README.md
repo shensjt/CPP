@@ -35,5 +35,6 @@ benchmarks/
 |---|---|---|---|---|
 | 2026-11-19 | pilot | 非最终 | `8a9eecf` | IO 线程未饱和；4→8 worker QPS 不涨 |
 | 2026-11-19 | diagnosis | 诊断 | `8a9eecf` | 每请求 readlink ~5、newfstatat ~4、epoll_ctl ~1 |
+| 2026-11-20 | baseline | **正式** | `ee1f418` | IO 15.6–28.3%；4→8 worker QPS +15%，P99 恶化；先 request-path |
 
-最终 A 阶段基线数据在完整矩阵跑完后补到本目录。
+A 阶段基线已完成，见 [2026-11-20-baseline.md](2026-11-20-baseline.md)。

@@ -1,0 +1,4 @@
+server: build/server/kv_store --host 127.0.0.1 --port 16380 --threads 4 --timeout 60 --no-aof
+mode: get aof: off clients: 16 requests: 200000 keys: 10000 value_size: 64
+bench: redis-benchmark -n 200000 -c 16 -d 64 -r 10000 -t get
+runs: 3

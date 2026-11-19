@@ -1,8 +1,8 @@
 # ADR-0003：先请求路径优化，暂缓主从 Reactor
 
-- 状态：Proposed（完整 A 矩阵后改 Accepted 或 Superseded）
+- 状态：Accepted（2026-11-20）
 - 日期：2026-11-19
-- 关联：[pilot](../benchmarks/2026-11-19-pilot.md)、[诊断](../benchmarks/2026-11-19-diagnosis.md)
+- 关联：[基线](../benchmarks/2026-11-20-baseline.md)、[pilot](../benchmarks/2026-11-19-pilot.md)、[诊断](../benchmarks/2026-11-19-diagnosis.md)
 - 取代：无
 
 ## 背景
@@ -18,13 +18,22 @@
 
 ## 证据
 
+正式基线（3 次 × 30s，中位数）：
+
 ```text
-4 worker CPU：worker ~75%，io ~25%
-4 worker：19,538 QPS
-8 worker：20,303 QPS
-50 / 100 / 200 连接：19.7k / 19.5k / 20.2k
+IO 线程：15.6%（1 worker）– 28.3%（8 worker）
+2 worker：16,615 QPS，P99 16.90ms
+4 worker：16,696 QPS，P99 26.19ms
+8 worker：19,142 QPS，P99 120.27ms
+4 worker cache0：16,712 QPS，worker 93.5%
+4 worker cache16：16,696 QPS，worker 73.0%
+1MB：645 req/s
+close：9,244 QPS，io 53.4%
+```
 
 strace（每请求）：
+
+```text
 readlink ~5
 newfstatat ~4
 epoll_ctl ~1
@@ -32,6 +41,7 @@ epoll_ctl ~1
 
 详见：
 
+- [正式基线](../benchmarks/2026-11-20-baseline.md)
 - [pilot](../benchmarks/2026-11-19-pilot.md)
 - [诊断](../benchmarks/2026-11-19-diagnosis.md)
 
@@ -70,10 +80,10 @@ B1 → B2 → B3 → 复测
 
 ## 复评条件
 
-完整 A 矩阵（3 次 × 30s）跑完后：
+完整 A 矩阵（3 次 × 30s）已完成：
 
-- 如果 IO 线程仍明显低于 100%，且 `epoll_ctl` 不是主要 syscall：
-  - 本条改为 Accepted；
-  - 主从 Reactor 推迟到 v1.1。
-- 如果高并发下 IO 线程接近饱和，或 `epoll_ctl` 成为主要热点：
-  - 保留 B4，先做 B1/B2，再做 reactor A/B。
+- IO 线程仍明显低于 100%，`epoll_ctl` 不是主要 syscall；
+- 本条已改为 Accepted；
+- 主从 Reactor 推迟到 v1.1。
+
+B4 仍保留为条件项：如果 B1/B2 后 IO 线程接近 100%，或 `epoll_ctl` 成为主要热点，再按 B4 做 A/B。

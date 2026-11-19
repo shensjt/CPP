@@ -1,0 +1,2 @@
+aof_before_bytes=708885
+aof_after_bytes=22000149
