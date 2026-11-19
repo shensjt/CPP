@@ -1,6 +1,7 @@
 #include "http/http_server.h"
 
 #include <chrono>
+#include <cstddef>
 #include <string>
 #include <utility>
 
@@ -39,6 +40,25 @@ HttpResponse MakeHealthResponse(const HttpRequest& request) {
     return response;
 }
 
+// 小响应一次 ToString 发送；大响应 header/body 分开发，避免再拷贝大 body。
+// 分两次 Send 会多一次 flush，小文件不划算。
+constexpr std::size_t kLargeBodyBytes = 64 * 1024;
+
+void SendResponse(TcpConnection& conn, const HttpResponse& response,
+                  bool head_only) {
+    if (head_only || response.StatusCode() == 304 ||
+        response.Body().size() < kLargeBodyBytes) {
+        conn.Send(response.ToString(head_only));
+        return;
+    }
+
+    conn.Send(response.HeaderToString());
+    if (!conn.Connected()) {
+        return;
+    }
+    conn.Send(response.Body());
+}
+
 // 错误响应后关闭连接：协议/请求已经不可信，继续解析可能错位。
 // CloseAfterWrite 保证响应写进内核后再关闭，不丢字节。
 void SendError(TcpConnection& conn, int status, std::string body) {
@@ -46,7 +66,7 @@ void SendError(TcpConnection& conn, int status, std::string body) {
     response.SetContentType("text/plain; charset=utf-8");
     response.SetBody(std::move(body));
     response.SetCloseConnection(true);
-    conn.Send(response.ToString());
+    SendResponse(conn, response, false);
     conn.CloseAfterWrite();
 }
 
@@ -121,7 +141,7 @@ void HttpServer::OnMessage(TcpConnection& conn) {
             response.SetCloseConnection(!request.keep_alive);
             const bool head_only =
                 request.method == HttpRequest::Method::kHead;
-            conn.Send(response.ToString(head_only));
+            SendResponse(conn, response, head_only);
             log_access(response.StatusCode(),
                        head_only ? 0 : response.Body().size());
 
@@ -152,7 +172,7 @@ void HttpServer::OnMessage(TcpConnection& conn) {
         // 响应头里的 Connection 和实际关闭行为保持一致。
         response.SetCloseConnection(!request.keep_alive);
         const bool head_only = request.method == HttpRequest::Method::kHead;
-        conn.Send(response.ToString(head_only));
+        SendResponse(conn, response, head_only);
         log_access(response.StatusCode(),
                    head_only ? 0 : response.Body().size());
 

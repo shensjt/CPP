@@ -278,11 +278,12 @@ HttpResponse StaticFileHandler::Handle(const HttpRequest& request) const {
         if (!ReadFile(candidate, body)) {
             return MakeError(500, "500 Internal Server Error\n");
         }
-        entry.body = std::move(body);
+        entry.body =
+            std::make_shared<const std::string>(std::move(body));
         entry.mtime_sec = st.st_mtim.tv_sec;
         entry.mtime_nsec = st.st_mtim.tv_nsec;
         entry.size = static_cast<std::uintmax_t>(st.st_size);
-        cache_.Put(key, entry, entry.body.size());
+        cache_.Put(key, entry, entry.body->size());
     }
 
     HttpResponse response(200);
@@ -290,6 +291,6 @@ HttpResponse StaticFileHandler::Handle(const HttpRequest& request) const {
     response.SetHeader("ETag", etag);
     response.SetHeader("Last-Modified", last_modified);
     response.SetHeader("Cache-Control", "no-cache");
-    response.SetBody(std::move(entry.body));
+    response.SetBodyShared(entry.body);
     return response;
 }
