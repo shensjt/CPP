@@ -1,0 +1,1 @@
+kv_store listening on 127.0.0.1:16380 threads=4 timeout=60s aof=off

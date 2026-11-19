@@ -1,0 +1,2 @@
+kv_store listening on 127.0.0.1:16380 threads=4 timeout=60s aof=/tmp/v1a-pilot/kv-set-c128-aof/kv.aof
+kv_store listening on 127.0.0.1:16380 threads=4 timeout=60s aof=/tmp/v1a-pilot/kv-set-c128-aof/kv.aof

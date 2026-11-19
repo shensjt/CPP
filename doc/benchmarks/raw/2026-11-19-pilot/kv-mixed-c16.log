@@ -1,0 +1,30 @@
+preload: memtier SET sequential
+=== run 1/1 ===
+Json file /tmp/v1a-pilot/kv-mixed-c16/memtier-run1.json created...
+Writing results to stdout
+[RUN #1] Preparing benchmark client...
+[RUN #1] Launching threads now...
+[RUN #1 91%,   1 secs]  4 threads  4 conns:       45705 ops,   45693 (avg:   45693) ops/sec, 3.15MB/sec (avg: 3.15MB/sec),  0.35 (avg:  0.35) msec latency[RUN #1 100%,   1 secs]  0 threads  4 conns:       50000 ops,   45693 (avg:   45619) ops/sec, 3.15MB/sec (avg: 3.15MB/sec),  0.35 (avg:  0.35) msec latency
+
+
+CPU Utilization Summary
+  Total CPU time:   1.728s  (user 0.499s, sys 1.230s)
+  Wall time:        1.127s
+  Cores used:       1.534   (avg 38.2% across 4 worker threads)
+  Peak utilization: 157.2%
+Saving JSON output file: /tmp/v1a-pilot/kv-mixed-c16/memtier-run1.json
+Json file closed.
+4         Threads
+4         Connections per thread
+3125      Requests per client
+
+
+ALL STATS
+============================================================================================================================
+Type         Ops/sec     Hits/sec   Misses/sec    Avg. Latency     p50 Latency     p90 Latency     p99 Latency       KB/sec 
+----------------------------------------------------------------------------------------------------------------------------
+Sets        22659.69          ---          ---         0.35106         0.32700         0.48700         0.76700      1656.81 
+Gets        22645.19     22645.19         0.00         0.34662         0.32700         0.47100         0.75100      1545.26 
+Waits           0.00          ---          ---             ---             ---             ---             ---          --- 
+Totals      45304.87     22645.19         0.00         0.34884         0.32700         0.47900         0.75900      3202.08 
+done: /tmp/v1a-pilot/kv-mixed-c16
