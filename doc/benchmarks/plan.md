@@ -198,3 +198,28 @@ P99 被 IO 线程拖高
 - 实验室数据直连 `127.0.0.1`，不经过 Caddy/HTTPS；
 - 生产边缘数据在 C/D 阶段单独测；
 - 不为了数字好看换工具或改请求。
+
+## 10. 数据记录
+
+每个实验在 `doc/benchmarks/raw/<日期>-<实验>/` 保存：
+
+```text
+environment.txt
+command.txt
+server.log
+wrk.log / redis-benchmark.log / memtier.log
+pidstat.log
+aof.txt / replay.txt（AOF 实验）
+```
+
+- 3 次原始输出都保留，summary 写中位数；
+- 不提交 AOF 二进制；
+- `strace` 放诊断目录，标注 tracing 会降低 QPS；
+- 失败运行保留并标注 `invalid`；
+- summary 关联 ADR。
+
+## 11. 关联决策
+
+- [ADR-0001](../decisions/0001-mature-benchmark-tools.md)：成熟工具
+- [ADR-0002](../decisions/0002-baseline-before-optimization.md)：先基线
+- [ADR-0003](../decisions/0003-request-path-before-reactor.md)：request-path 优先
