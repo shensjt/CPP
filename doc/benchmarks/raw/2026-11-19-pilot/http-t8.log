@@ -1,0 +1,15 @@
+=== run 1/1 ===
+Running 5s test @ http://127.0.0.1:18080/
+  4 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     4.64ms    2.54ms  48.90ms   78.59%
+    Req/Sec     5.12k   685.50     7.04k    69.00%
+  Latency Distribution
+     50%    4.13ms
+     75%    5.69ms
+     90%    7.61ms
+     99%   13.23ms
+  102974 requests in 5.07s, 2.64GB read
+Requests/sec:  20302.66
+Transfer/sec:    532.17MB
+done: /tmp/v1a-pilot/http-t8

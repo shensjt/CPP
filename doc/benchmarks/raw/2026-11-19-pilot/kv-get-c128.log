@@ -1,0 +1,78 @@
+preload: redis-benchmark SET
+=== run 1/1 ===
+WARNING: Could not fetch server CONFIG
+ GET: rps=0.0 (overall: 0.0) avg_msec=-nan (overall: -nan)                                                          GET: rps=43678.6 (overall: 43334.6) avg_msec=1.639 (overall: 1.639)                                                                    GET: rps=44525.9 (overall: 43926.7) avg_msec=1.592 (overall: 1.615)                                                                    GET: rps=51580.0 (overall: 46460.9) avg_msec=1.377 (overall: 1.528)                                                                    GET: rps=43773.8 (overall: 45788.5) avg_msec=1.617 (overall: 1.549)                                                                    GET: rps=45549.8 (overall: 45740.9) avg_msec=1.633 (overall: 1.566)                                                                    GET: rps=40350.6 (overall: 44844.3) avg_msec=1.837 (overall: 1.606)                                                                    GET: rps=47183.3 (overall: 45177.8) avg_msec=1.520 (overall: 1.594)                                                                    GET: rps=49116.0 (overall: 45667.7) avg_msec=1.447 (overall: 1.574)                                                                    GET: rps=49111.6 (overall: 46050.0) avg_msec=1.444 (overall: 1.559)                                                                    GET: rps=49948.2 (overall: 46439.5) avg_msec=1.426 (overall: 1.544)                                                                    GET: rps=49243.0 (overall: 46694.2) avg_msec=1.427 (overall: 1.533)                                                                    GET: rps=46440.0 (overall: 46673.1) avg_msec=1.544 (overall: 1.534)                                                                    GET: rps=46378.5 (overall: 46650.4) avg_msec=1.549 (overall: 1.535)                                                                    GET: rps=45426.3 (overall: 46563.0) avg_msec=1.585 (overall: 1.539)                                                                    GET: rps=45649.4 (overall: 46502.1) avg_msec=1.544 (overall: 1.539)                                                                    GET: rps=45709.2 (overall: 46452.6) avg_msec=1.551 (overall: 1.540)                                                                    GET: rps=44888.4 (overall: 46360.6) avg_msec=1.606 (overall: 1.544)                                                                    ====== GET ======
+  200000 requests completed in 4.31 seconds
+  128 parallel clients
+  64 bytes payload
+  keep alive: 1
+  multi-thread: no
+
+Latency by percentile distribution:
+0.000% <= 0.359 milliseconds (cumulative count 1)
+50.000% <= 1.487 milliseconds (cumulative count 100247)
+75.000% <= 1.671 milliseconds (cumulative count 150331)
+87.500% <= 1.831 milliseconds (cumulative count 175487)
+93.750% <= 2.007 milliseconds (cumulative count 187631)
+96.875% <= 2.215 milliseconds (cumulative count 193859)
+98.438% <= 2.527 milliseconds (cumulative count 196884)
+99.219% <= 3.143 milliseconds (cumulative count 198441)
+99.609% <= 3.831 milliseconds (cumulative count 199223)
+99.805% <= 5.111 milliseconds (cumulative count 199613)
+99.902% <= 12.255 milliseconds (cumulative count 199807)
+99.951% <= 14.847 milliseconds (cumulative count 199903)
+99.976% <= 16.215 milliseconds (cumulative count 199952)
+99.988% <= 17.551 milliseconds (cumulative count 199976)
+99.994% <= 18.607 milliseconds (cumulative count 199988)
+99.997% <= 19.775 milliseconds (cumulative count 199994)
+99.998% <= 20.063 milliseconds (cumulative count 199997)
+99.999% <= 20.319 milliseconds (cumulative count 199999)
+100.000% <= 20.431 milliseconds (cumulative count 200000)
+100.000% <= 20.431 milliseconds (cumulative count 200000)
+
+Cumulative distribution of latencies:
+0.000% <= 0.103 milliseconds (cumulative count 0)
+0.003% <= 0.407 milliseconds (cumulative count 7)
+0.013% <= 0.503 milliseconds (cumulative count 26)
+0.069% <= 0.607 milliseconds (cumulative count 138)
+0.176% <= 0.703 milliseconds (cumulative count 351)
+0.347% <= 0.807 milliseconds (cumulative count 694)
+0.770% <= 0.903 milliseconds (cumulative count 1541)
+2.171% <= 1.007 milliseconds (cumulative count 4343)
+5.255% <= 1.103 milliseconds (cumulative count 10510)
+12.184% <= 1.207 milliseconds (cumulative count 24367)
+22.563% <= 1.303 milliseconds (cumulative count 45126)
+37.655% <= 1.407 milliseconds (cumulative count 75310)
+52.666% <= 1.503 milliseconds (cumulative count 105332)
+67.656% <= 1.607 milliseconds (cumulative count 135312)
+78.353% <= 1.703 milliseconds (cumulative count 156707)
+86.311% <= 1.807 milliseconds (cumulative count 172623)
+90.866% <= 1.903 milliseconds (cumulative count 181732)
+93.816% <= 2.007 milliseconds (cumulative count 187631)
+95.603% <= 2.103 milliseconds (cumulative count 191206)
+99.192% <= 3.103 milliseconds (cumulative count 198383)
+99.660% <= 4.103 milliseconds (cumulative count 199321)
+99.804% <= 5.103 milliseconds (cumulative count 199609)
+99.862% <= 6.103 milliseconds (cumulative count 199724)
+99.879% <= 7.103 milliseconds (cumulative count 199758)
+99.885% <= 8.103 milliseconds (cumulative count 199770)
+99.891% <= 9.103 milliseconds (cumulative count 199782)
+99.895% <= 10.103 milliseconds (cumulative count 199790)
+99.895% <= 12.103 milliseconds (cumulative count 199791)
+99.930% <= 13.103 milliseconds (cumulative count 199860)
+99.942% <= 14.103 milliseconds (cumulative count 199883)
+99.956% <= 15.103 milliseconds (cumulative count 199912)
+99.975% <= 16.103 milliseconds (cumulative count 199951)
+99.984% <= 17.103 milliseconds (cumulative count 199969)
+99.990% <= 18.111 milliseconds (cumulative count 199981)
+99.996% <= 19.103 milliseconds (cumulative count 199992)
+99.999% <= 20.111 milliseconds (cumulative count 199997)
+100.000% <= 21.103 milliseconds (cumulative count 200000)
+
+Summary:
+  throughput summary: 46360.68 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        1.543     0.352     1.487     2.071     2.903    20.431
+
+done: /tmp/v1a-pilot/kv-get-c128

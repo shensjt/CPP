@@ -1,0 +1,25 @@
+preload: memtier SET sequential
+Writing results to stdout
+[RUN #1] Preparing benchmark client...
+[RUN #1] Launching threads now...
+[RUN #1 100%,   0 secs]  0 threads  1 conns:        1000 ops,       0 (avg:    4669) ops/sec, 0.00KB/sec (avg: 341.49KB/sec),  0.00 (avg:  0.21) msec latency
+
+
+CPU Utilization Summary
+  Total CPU time:   0.031s  (user 0.013s, sys 0.018s)
+  Wall time:        0.215s
+  Cores used:       0.142   (avg 13.4% across 1 worker threads)
+  Peak utilization: 0.1%
+1         Threads
+1         Connections per thread
+1000      Requests per client
+
+
+ALL STATS
+============================================================================================================================
+Type         Ops/sec     Hits/sec   Misses/sec    Avg. Latency     p50 Latency     p99 Latency   p99.9 Latency       KB/sec 
+----------------------------------------------------------------------------------------------------------------------------
+Sets         4669.69          ---          ---         0.21096         0.19100         0.43100         1.67900       341.49 
+Gets            0.00         0.00         0.00             ---             ---             ---             ---         0.00 
+Waits           0.00          ---          ---             ---             ---             ---             ---          --- 
+Totals       4669.69         0.00         0.00         0.21096         0.19100         0.43100         1.67900       341.49 

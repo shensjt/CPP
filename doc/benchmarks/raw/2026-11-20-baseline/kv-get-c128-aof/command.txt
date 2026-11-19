@@ -1,0 +1,4 @@
+server: build/server/kv_store --host 127.0.0.1 --port 16380 --threads 4 --timeout 60 --aof doc/benchmarks/raw/2026-11-20-baseline/kv-get-c128-aof/kv.aof
+mode: get aof: everysec clients: 128 requests: 200000 keys: 10000 value_size: 64
+bench: redis-benchmark -n 200000 -c 128 -d 64 -r 10000 -t get
+runs: 3

@@ -25,7 +25,8 @@
 class HttpServer {
 public:
     HttpServer(std::string ip, uint16_t port, std::string root,
-               std::size_t workers = 4, int idle_timeout_seconds = 60);
+               std::size_t workers = 4, int idle_timeout_seconds = 60,
+               std::size_t cache_bytes = 16 * 1024 * 1024);
     ~HttpServer();
 
     HttpServer(const HttpServer&) = delete;

@@ -1,0 +1,42 @@
+=== run 1/3 ===
+Running 30s test @ http://127.0.0.1:18080/
+  4 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     6.83ms   18.92ms 452.21ms   98.42%
+    Req/Sec     4.79k   738.28     8.06k    70.25%
+  Latency Distribution
+     50%    4.36ms
+     75%    6.15ms
+     90%    8.65ms
+     99%   66.47ms
+  572459 requests in 30.08s, 14.65GB read
+Requests/sec:  19030.48
+Transfer/sec:    498.82MB
+=== run 2/3 ===
+Running 30s test @ http://127.0.0.1:18080/
+  4 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     6.30ms   14.56ms 302.36ms   98.23%
+    Req/Sec     4.89k   705.61    11.55k    73.44%
+  Latency Distribution
+     50%    4.32ms
+     75%    6.02ms
+     90%    8.35ms
+     99%   51.45ms
+  582515 requests in 30.09s, 14.91GB read
+Requests/sec:  19359.29
+Transfer/sec:    507.44MB
+=== run 3/3 ===
+Running 30s test @ http://127.0.0.1:18080/
+  4 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     7.74ms   21.22ms 492.09ms   97.42%
+    Req/Sec     4.82k   751.53     6.92k    73.48%
+  Latency Distribution
+     50%    4.34ms
+     75%    6.14ms
+     90%    8.84ms
+     99%  120.27ms
+  575978 requests in 30.09s, 14.74GB read
+Requests/sec:  19142.39
+Transfer/sec:    501.76MB

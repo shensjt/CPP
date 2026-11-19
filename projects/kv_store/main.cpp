@@ -1,6 +1,7 @@
 #include "log/logger.h"
 #include "server/kv_server.h"
 
+#include <pthread.h>
 #include <signal.h>
 
 #include <cstddef>
@@ -83,12 +84,14 @@ int main(int argc, char** argv) {
         // 专用信号线程：只做 sigwait + Stop，不在 signal handler 里做重活。
         // Start() 返回说明 Stop 已被调用，所以后面 join 不会卡住。
         signal_thread = std::thread([server, signals]() mutable {
+            pthread_setname_np(pthread_self(), "signal");
             int sig = 0;
             if (sigwait(&signals, &sig) == 0) {
                 server->Stop();
             }
         });
 
+        pthread_setname_np(pthread_self(), "io");
         server->Start();
         signal_thread.join();
         LOG_INFO("kv_store stopped");
