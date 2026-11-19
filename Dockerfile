@@ -9,21 +9,28 @@ RUN sed -i \
         -e "s|http://archive.ubuntu.com/ubuntu/|http://${APT_MIRROR}/ubuntu/|g" \
         -e "s|http://security.ubuntu.com/ubuntu/|http://${APT_MIRROR}/ubuntu/|g" \
         /etc/apt/sources.list.d/ubuntu.sources \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
+    && apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 update \
+    && apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 install -y --no-install-recommends \
         build-essential cmake python3 python3-venv ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
+
+# 依赖层独立于源码：源码变化不会重新下载 pip 包。
+COPY blog/requirements.txt /tmp/requirements.txt
+RUN python3 -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir --disable-pip-version-check \
+         --retries 5 --timeout 30 \
+         -i "${PIP_INDEX_URL}" \
+         -r /tmp/requirements.txt
+
 COPY . .
 
 RUN cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release \
         -DBUILD_COMMIT="${BUILD_COMMIT}" \
     && cmake --build build/release --target web_server -j"$(nproc)" \
-    && python3 -m venv /opt/venv \
-    && /opt/venv/bin/pip install --no-cache-dir \
-         -i "${PIP_INDEX_URL}" \
-         -r blog/requirements.txt \
     && /opt/venv/bin/mkdocs build \
          -f blog/mkdocs-demo.yml \
          -d /out/www \
