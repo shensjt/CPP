@@ -60,12 +60,17 @@ void HttpResponse::SetContentType(const std::string& type) {
 
 void HttpResponse::SetBody(std::string body) {
     body_ = std::move(body);
+    shared_body_.reset();
+}
+
+void HttpResponse::SetBodyShared(std::shared_ptr<const std::string> body) {
+    shared_body_ = std::move(body);
+    body_.clear();
 }
 
 // Content-Length / Connection 由这里统一生成，调用方手动设置的同名头会被忽略，
 // 避免出现两个 Content-Length 或连接语义冲突。
-// head_only 只影响 Body 输出，Content-Length 仍然是 body_ 的真实长度。
-std::string HttpResponse::ToString(bool head_only) const {
+std::string HttpResponse::HeaderToString() const {
     std::ostringstream out;
     out << "HTTP/1.1 " << status_code_ << ' ' << reason_ << "\r\n";
 
@@ -79,13 +84,18 @@ std::string HttpResponse::ToString(bool head_only) const {
 
     // 304 不允许带消息体；也不应发送与 200 不同的 Content-Length。
     if (status_code_ != 304) {
-        out << "Content-Length: " << body_.size() << "\r\n";
+        out << "Content-Length: " << Body().size() << "\r\n";
     }
     out << "Connection: " << (close_ ? "close" : "keep-alive") << "\r\n";
     out << "\r\n";
-
-    if (!head_only && status_code_ != 304) {
-        out << body_;
-    }
     return out.str();
+}
+
+// head_only 只影响 Body 输出，Content-Length 仍然是 Body() 的真实长度。
+std::string HttpResponse::ToString(bool head_only) const {
+    std::string out = HeaderToString();
+    if (!head_only && status_code_ != 304) {
+        out += Body();
+    }
+    return out;
 }

@@ -232,6 +232,22 @@ TEST(StaticFile_CacheInvalidatedOnSizeChange) {
              std::string("new-longer"));
 }
 
+// SF23：响应持有共享 body，handler 析构后仍然可读。
+TEST(StaticFile_SharedBodyOutlivesHandler) {
+    TempDir dir;
+    dir.Write("file.txt", "shared-body");
+
+    HttpResponse response;
+    {
+        StaticFileHandler handler(dir.path.string());
+        response = handler.Handle(MakeRequest("/file.txt"));
+    }
+
+    CHECK_EQ(response.StatusCode(), 200);
+    CHECK_EQ(response.Body(), std::string("shared-body"));
+    CHECK(response.ToString().find("shared-body") != std::string::npos);
+}
+
 // SF13：指向 document root 外的符号链接被拦截。
 TEST(StaticFile_SymlinkEscape) {
     TempDir dir;
