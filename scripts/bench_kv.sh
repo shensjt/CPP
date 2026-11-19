@@ -116,6 +116,17 @@ memtier_clients=$(( (CLIENTS + MEMTIER_THREADS - 1) / MEMTIER_THREADS ))
 memtier_requests=$(( (REQUESTS + CLIENTS - 1) / CLIENTS ))
 if [ "$memtier_requests" -lt 1 ]; then memtier_requests=1; fi
 
+{
+    echo "server: $KV_BIN --host $HOST --port $PORT --threads $THREADS --timeout 60 ${aof_args[*]}"
+    echo "mode: $MODE aof: $AOF clients: $CLIENTS requests: $REQUESTS keys: $KEYS value_size: $VALUE_SIZE"
+    if [ "$MODE" = "mixed" ]; then
+        echo "bench: memtier_benchmark --threads=$MEMTIER_THREADS --clients=$memtier_clients --ratio=1:1 --key-pattern=R:R --key-minimum=1 --key-maximum=$KEYS --requests=$memtier_requests --hide-histogram --print-percentiles=50,90,99"
+    else
+        echo "bench: redis-benchmark -n $REQUESTS -c $CLIENTS -d $VALUE_SIZE -r $KEYS -t $MODE"
+    fi
+    echo "runs: $RUNS"
+} > "$OUT_DIR/command.txt"
+
 aof_before=0
 if [ "$AOF" = "everysec" ] && [ -f "$AOF_PATH" ]; then
     aof_before=$(stat -c '%s' "$AOF_PATH")

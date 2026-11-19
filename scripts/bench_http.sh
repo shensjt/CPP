@@ -95,6 +95,12 @@ if [ "$KEEP_ALIVE" = "0" ]; then
     wrk_args+=(-H "Connection: close")
 fi
 
+{
+    echo "server: $SERVER_BIN ${server_args[*]}"
+    echo "wrk: wrk ${wrk_args[*]} http://$HOST:$PORT$PATH_URL"
+    echo "runs: $RUNS"
+} > "$OUT_DIR/command.txt"
+
 : > "$OUT_DIR/wrk.log"
 for run in $(seq 1 "$RUNS"); do
     echo "=== run $run/$RUNS ===" | tee -a "$OUT_DIR/wrk.log"
