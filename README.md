@@ -320,6 +320,8 @@ v1.0-A 起使用成熟工具，不再维护自研压测客户端：
 ## 文档
 
 - 架构：[doc/architecture.md](doc/architecture.md)
+- 架构决策：[doc/decisions/](doc/decisions/)
+- 性能数据：[doc/benchmarks/](doc/benchmarks/)
 - 部署与回滚：[doc/runbooks/](doc/runbooks/)
 - 发布记录：[doc/releases/](doc/releases/)
 - 故障复盘：[doc/incidents/](doc/incidents/)
@@ -346,6 +348,8 @@ blog/              MkDocs 内容站配置、演示内容
 tests/             单元/集成测试
 doc/               项目工程文档
   architecture.md  架构与关键决策
+  decisions/       架构决策记录
+  benchmarks/      性能数据
   releases/        发布记录
   incidents/       故障复盘
   runbooks/        部署与回滚

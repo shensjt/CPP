@@ -191,7 +191,20 @@ KV Store：
 - 内容发布是本地脚本：构建、快照 `www.prev`、rsync、smoke、失败回滚；
 - 内容只有一份 `www.prev` 快照，没有 push-to-publish。
 
-## 7. 入口
+## 7. 性能与瓶颈
+
+v1.0-A 基线进行中，数据在 [benchmarks/](benchmarks/)。
+
+当前诊断（pilot）：
+
+- 4 worker 时 IO 线程约 25%，没有饱和；
+- 4 → 8 worker QPS 几乎不涨；
+- 每请求约 5 次 `readlink`、4 次 `newfstatat`、1 次 `epoll_ctl`；
+- 主要成本在请求路径解析、文件元数据检查和 body 拷贝。
+
+决策：[ADR-0003](decisions/0003-request-path-before-reactor.md) 先做 request-path 优化，主从 Reactor 暂缓。完整矩阵后更新本节。
+
+## 8. 入口
 
 - 项目说明：[README.md](../README.md)
 - 内容流水线：[blog-pipeline.md](blog-pipeline.md)
