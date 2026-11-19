@@ -19,9 +19,10 @@
 //   4. 目录则补 index.html，再检查是否普通文件。
 //
 // 缓存：
-// - 按字节数做 LRU，key 是规范化后的绝对路径；
+// - path_cache_ 按 URL 缓存规范化路径，避免每请求 weakly_canonical；
+// - cache_ 按字节数做 LRU，key 是规范化后的绝对路径；
 // - 命中后比对 mtime/size，文件更新后自动失效；
-// - Handle 是 const，但 cache_ 是 mutable，读时也要写入缓存。
+// - Handle 是 const，但两个 cache_ 都是 mutable，读时也要写入。
 class StaticFileHandler {
 public:
     explicit StaticFileHandler(std::string root,
@@ -38,5 +39,6 @@ private:
     };
 
     std::filesystem::path root_;
+    mutable LruCache<std::string, std::string> path_cache_;
     mutable LruCache<std::string, CachedFile> cache_;
 };

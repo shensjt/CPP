@@ -198,6 +198,7 @@ HttpResponse MakeNotModified(const std::string& etag,
 // 之后所有请求都相对这个 root 检查，不依赖进程当前工作目录。
 StaticFileHandler::StaticFileHandler(std::string root, std::size_t cache_bytes)
     : root_(fs::weakly_canonical(fs::path(std::move(root)))),
+      path_cache_(1024 * 1024),
       cache_(cache_bytes) {
     std::error_code ec;
     if (!fs::is_directory(root_, ec)) {
@@ -221,27 +222,84 @@ HttpResponse StaticFileHandler::Handle(const HttpRequest& request) const {
         return MakeError(400, "400 Bad Request\n");
     }
 
-    // 2. 拼接并规范化；weakly_canonical 会消掉 .. 和符号链接。
-    // 3. 检查结果仍在 root_ 内，否则 403。
+    // 2. 先查 URL -> 规范化路径缓存；miss 才做 weakly_canonical。
+    //    缓存值已经过 root 检查，命中后仍做一次 IsInside 防御。
     std::error_code ec;
-    const std::string relative = decoded->substr(1);
-    fs::path candidate = fs::weakly_canonical(root_ / fs::path(relative), ec);
-    if (ec || !IsInside(root_, candidate)) {
+    const std::string& decoded_path = *decoded;
+    const std::string relative = decoded_path.substr(1);
+    fs::path candidate;
+    std::string cached_path;
+    bool path_hit = path_cache_.Get(decoded_path, cached_path);
+
+    auto resolve_path = [&]() -> bool {
+        candidate = fs::weakly_canonical(root_ / fs::path(relative), ec);
+        if (ec || !IsInside(root_, candidate)) {
+            return false;
+        }
+        const std::string value = candidate.string();
+        path_cache_.Put(decoded_path, value,
+                        decoded_path.size() + value.size());
+        return true;
+    };
+
+    if (path_hit) {
+        candidate = fs::path(cached_path);
+        if (!IsInside(root_, candidate)) {
+            path_hit = false;
+        }
+    }
+    if (!path_hit && !resolve_path()) {
         return MakeError(403, "403 Forbidden\n");
     }
 
-    // 4. 目录补 index.html；再确认是普通文件。
-    if (fs::is_directory(candidate, ec)) {
-        candidate /= "index.html";
-    }
-    if (ec || !fs::is_regular_file(candidate, ec)) {
-        return MakeError(404, "404 Not Found\n");
-    }
+    // 3. 单次 lstat 判断目录/普通文件/符号链接；目录才补 index.html。
+    //    lstat 用来发现缓存路径后来被替换成符号链接的情况。
+    auto follow_symlink = [&]() -> bool {
+        candidate = fs::weakly_canonical(candidate, ec);
+        if (ec || !IsInside(root_, candidate)) {
+            return false;
+        }
+        const std::string value = candidate.string();
+        path_cache_.Put(decoded_path, value,
+                        decoded_path.size() + value.size());
+        return true;
+    };
 
-    // 5. stat 当前文件；LRU 命中后比对 mtime/size。
-    // key 用规范化后的绝对路径，避免不同 URL 写法重复缓存同一文件。
     struct stat st {};
-    if (::stat(candidate.c_str(), &st) != 0) {
+    if (::lstat(candidate.c_str(), &st) != 0) {
+        if (!path_hit) {
+            return MakeError(404, "404 Not Found\n");
+        }
+        if (!resolve_path()) {
+            return MakeError(403, "403 Forbidden\n");
+        }
+        if (::lstat(candidate.c_str(), &st) != 0) {
+            return MakeError(404, "404 Not Found\n");
+        }
+    }
+    if (S_ISLNK(st.st_mode)) {
+        if (!follow_symlink()) {
+            return MakeError(403, "403 Forbidden\n");
+        }
+        if (::stat(candidate.c_str(), &st) != 0) {
+            return MakeError(404, "404 Not Found\n");
+        }
+    }
+    if (S_ISDIR(st.st_mode)) {
+        candidate /= "index.html";
+        if (::lstat(candidate.c_str(), &st) != 0) {
+            return MakeError(404, "404 Not Found\n");
+        }
+        if (S_ISLNK(st.st_mode)) {
+            if (!follow_symlink()) {
+                return MakeError(403, "403 Forbidden\n");
+            }
+            if (::stat(candidate.c_str(), &st) != 0) {
+                return MakeError(404, "404 Not Found\n");
+            }
+        }
+    }
+    if (!S_ISREG(st.st_mode)) {
         return MakeError(404, "404 Not Found\n");
     }
 

@@ -232,6 +232,42 @@ TEST(StaticFile_CacheInvalidatedOnSizeChange) {
              std::string("new-longer"));
 }
 
+// SF21：路径缓存命中后文件被删，再重建，仍能正确 404 / 200。
+TEST(StaticFile_PathCacheAfterDeleteRecreate) {
+    TempDir dir;
+    dir.Write("file.txt", "one");
+
+    StaticFileHandler handler(dir.path.string());
+    CHECK_EQ(handler.Handle(MakeRequest("/file.txt")).Body(), std::string("one"));
+
+    std::error_code ec;
+    fs::remove(dir.path / "file.txt", ec);
+    CHECK_EQ(handler.Handle(MakeRequest("/file.txt")).StatusCode(), 404);
+
+    dir.Write("file.txt", "two");
+    const HttpResponse response = handler.Handle(MakeRequest("/file.txt"));
+    CHECK_EQ(response.StatusCode(), 200);
+    CHECK_EQ(response.Body(), std::string("two"));
+}
+
+// SF22：路径缓存命中后，文件被替换成指向 root 外的符号链接，仍应 403。
+TEST(StaticFile_PathCacheSymlinkSwap) {
+    TempDir dir;
+    dir.Write("file.txt", "safe");
+    const fs::path file = dir.path / "file.txt";
+
+    StaticFileHandler handler(dir.path.string());
+    CHECK_EQ(handler.Handle(MakeRequest("/file.txt")).Body(), std::string("safe"));
+
+    std::error_code ec;
+    fs::remove(file, ec);
+    fs::create_symlink("/etc/passwd", file, ec);
+    if (ec) {
+        return;  // 环境不支持符号链接时跳过
+    }
+    CHECK_EQ(handler.Handle(MakeRequest("/file.txt")).StatusCode(), 403);
+}
+
 // SF13：指向 document root 外的符号链接被拦截。
 TEST(StaticFile_SymlinkEscape) {
     TempDir dir;
