@@ -56,8 +56,9 @@ void SendError(TcpConnection& conn, int status, std::string body) {
 // - message：连接可读，进入 HTTP 解析/处理；
 // - close：连接从 TcpServer 连接表移除，清理 per-fd parser。
 HttpServer::HttpServer(std::string ip, uint16_t port, std::string root,
-                       std::size_t workers, int idle_timeout_seconds)
-    : handler_(std::move(root)),
+                       std::size_t workers, int idle_timeout_seconds,
+                       std::size_t cache_bytes)
+    : handler_(std::move(root), cache_bytes),
       server_(ip, port, workers, idle_timeout_seconds) {
     server_.SetMessageCallback([this](TcpConnection& conn) { OnMessage(conn); });
     server_.SetCloseCallback([this](int fd) { OnClose(fd); });
