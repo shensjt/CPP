@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -19,12 +20,18 @@ public:
     void SetHeader(const std::string& name, const std::string& value);
     void SetContentType(const std::string& type);
     void SetBody(std::string body);
+    void SetBodyShared(std::shared_ptr<const std::string> body);
     void SetCloseConnection(bool close) { close_ = close; }
 
     int StatusCode() const { return status_code_; }
-    const std::string& Body() const { return body_; }
+    const std::string& Body() const {
+        return shared_body_ ? *shared_body_ : body_;
+    }
 
-    // 序列化为响应字节流；Content-Length 始终是 body_ 的长度。
+    // 只生成状态行 + Headers + 空行，不包含 body。
+    std::string HeaderToString() const;
+
+    // 序列化为响应字节流；Content-Length 始终是 body 的长度。
     // head_only 为 true 时只输出状态行和 Headers，不输出 Body。
     std::string ToString(bool head_only = false) const;
 
@@ -33,5 +40,6 @@ private:
     std::string reason_;
     std::vector<std::pair<std::string, std::string>> headers_;
     std::string body_;
+    std::shared_ptr<const std::string> shared_body_;
     bool close_ = false;
 };

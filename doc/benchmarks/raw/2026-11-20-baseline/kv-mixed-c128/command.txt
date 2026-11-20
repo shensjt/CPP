@@ -1,0 +1,4 @@
+server: build/server/kv_store --host 127.0.0.1 --port 16380 --threads 4 --timeout 60 --no-aof
+mode: mixed aof: off clients: 128 requests: 200000 keys: 10000 value_size: 64
+bench: memtier_benchmark --threads=4 --clients=32 --ratio=1:1 --key-pattern=R:R --key-minimum=1 --key-maximum=10000 --requests=1563 --hide-histogram --print-percentiles=50,90,99
+runs: 3

@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
+#include <memory>
 #include <string>
 
 #include "http/http_request.h"
@@ -31,7 +32,7 @@ public:
 
 private:
     struct CachedFile {
-        std::string body;
+        std::shared_ptr<const std::string> body;
         std::time_t mtime_sec = 0;
         long mtime_nsec = 0;
         std::uintmax_t size = 0;

@@ -1,0 +1,109 @@
+/* ==========================================================================
+   SJT 站点主题覆盖 · 方案 A「终端深潜」
+   --------------------------------------------------------------------------
+   覆盖范围（全部集中在本文件，不动主题内部文件）：
+     1. 字体栈：中文走系统字体，代码用等宽字体（mkdocs.yml 里 font: false，
+        不引外部字体 CDN，保证国内访问稳定）
+     2. 深色配色：基于 Material 内置 slate 方案覆写 CSS 变量
+     3. 浅色配色：作为可切换的备选，仅微调强调色保持一致
+   维护说明：升级 MkDocs Material 时，只需核对变量名是否变更。
+   ========================================================================== */
+
+/* ---------- 1. 字体栈（明暗共用） ---------- */
+:root {
+  --md-text-font:
+    "Inter", "PingFang SC", "Microsoft YaHei",
+    "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+  --md-code-font:
+    "JetBrains Mono", "Fira Code", "Cascadia Code",
+    Consolas, "Courier New", monospace;
+}
+
+/* 中文正文在深色下略放大字距，减少笔画粘连感 */
+.md-typeset {
+  letter-spacing: 0.01em;
+}
+
+/* ---------- 2. 深色方案（默认）：slate 覆写 ----------
+   注意一：Material 9 把 data-md-color-scheme 挂在 <body> 上。
+   注意二：主题 palette.css 的规则形如
+     [data-md-color-scheme="slate"][data-md-color-primary="indigo"]
+   优先级为 (0,2,0)。下面的选择器把同一属性写两遍，优先级 (0,2,1)，
+   保证无论 primary 配置成什么，这里的变量都能覆盖主题默认。 */
+body[data-md-color-scheme="slate"][data-md-color-scheme="slate"] {
+  /* 页面底色与正文 */
+  --md-default-bg-color:          #0d1117;  /* 页面底色：近黑蓝灰 */
+  --md-default-bg-color--light:   #161b22;  /* 浮层底色（导航/卡片） */
+  --md-default-fg-color:          #e6edf3;  /* 正文：柔和白，非纯白 */
+  --md-default-fg-color--light:   #9da7b3;  /* 次级文字 */
+  --md-default-fg-color--lighter: #6e7781;  /* 更次级（时间戳等） */
+  --md-default-fg-color--lightest:#2a3340;  /* 边框、分割线 */
+
+  /* 顶栏与页脚 */
+  --md-primary-fg-color:          #0d1117;  /* 顶栏底色与页面一致，靠分割线区分 */
+  --md-primary-fg-color--light:   #161b22;
+  --md-primary-fg-color--dark:    #090c10;
+  --md-footer-bg-color:           #090c10;
+  --md-footer-bg-color--dark:     #060809;
+
+  /* 强调色：青（主交互色） */
+  --md-accent-fg-color:           #2dd4bf;
+  --md-accent-fg-color--transparent: rgba(45, 212, 191, 0.12);
+  --md-typeset-a-color:           #5eead4;  /* 链接：比强调色亮半档，保证正文里可读 */
+
+  /* 代码块 */
+  --md-code-bg-color:             #10151d;
+  --md-code-fg-color:             #d6dbe4;
+  --md-code-hl-color:             rgba(45, 212, 191, 0.15);       /* 行高亮 */
+  --md-code-hl-number-color:      #f78166;  /* 高亮行号：辅助橙 */
+  --md-code-hl-string-color:      #a5d6ff;
+  --md-code-hl-keyword-color:     #ff7b72;
+  --md-code-hl-function-color:    #d2a8ff;
+  --md-code-hl-constant-color:    #79c0ff;
+  --md-code-hl-comment-color:     #7d8794;
+
+  /* 提示框（admonition）默认色调向青色靠拢 */
+  --md-admonition-fg-color:       #e6edf3;
+
+  /* 选中文字 */
+  --md-typeset-selection-color:   rgba(45, 212, 191, 0.3);
+
+  /* 阴影在深色下加深，保持层次 */
+  --md-shadow-z1: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.5);
+  --md-shadow-z2: 0 0.3rem 1rem  rgba(0, 0, 0, 0.55);
+}
+
+/* 深色下顶栏与正文之间补一条细分隔线（顶栏底色与页面相同，需要边界） */
+[data-md-color-scheme="slate"] .md-header {
+  border-bottom: 1px solid #2a3340;
+}
+
+/* 深色下侧栏当前页高亮用青色细条，替代默认的色块，更克制 */
+[data-md-color-scheme="slate"] .md-nav__link--active {
+  color: #2dd4bf;
+}
+[data-md-color-scheme="slate"] .md-nav__link:active {
+  color: #2dd4bf;
+}
+
+/* 行内代码：深色下用青色描边感 */
+[data-md-color-scheme="slate"] .md-typeset code:not(.highlight code) {
+  background-color: #161b22;
+  border: 1px solid #2a3340;
+  color: #5eead4;
+}
+
+/* ---------- 3. 浅色方案（备选切换）：仅微调，维持 Material 默认质感 ---------- */
+body[data-md-color-scheme="default"][data-md-color-scheme="default"] {
+  /* 强调色用深半档的青，保证白底上对比度达标 */
+  --md-accent-fg-color:           #0d9488;
+  --md-accent-fg-color--transparent: rgba(13, 148, 136, 0.1);
+  --md-typeset-a-color:           #0f766e;
+
+  /* 顶栏/页脚用深青墨绿，与深色的青色品牌呼应（默认靛蓝与品牌不符） */
+  --md-primary-fg-color:          #0d4f47;
+  --md-primary-fg-color--light:   #3a7a72;
+  --md-primary-fg-color--dark:    #093832;
+  --md-footer-bg-color:           #093832;
+  --md-footer-bg-color--dark:     #062824;
+}

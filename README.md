@@ -250,7 +250,6 @@ Redis 风格的 KV 存储，复用 Web Server 的 `common/net`、线程池和测
 - `std::shared_mutex` 读写锁：读读并行，写写串行
 - AOF：RESP 编码追加、everysec fsync、启动 replay、尾部截断修复
 - `sigwait` 优雅停机：worker 退出后才停 AOF
-- 压测客户端 `bench_kv`
 
 ## KV · 架构
 
@@ -288,7 +287,7 @@ KvServer::OnMessage
 ## KV · 运行
 
 ```bash
-# 编译全部目标（web_server / kv_store / bench_kv）
+# 编译全部目标（web_server / kv_store）
 cmake -S . -B build/server -DCMAKE_BUILD_TYPE=Release
 cmake --build build/server -j
 
@@ -306,22 +305,13 @@ nc 127.0.0.1 6380
 
 ## KV · 压测
 
-环境同 Web Server：WSL2 / Ubuntu，AMD Ryzen 7 7840H，16 逻辑核；客户端与服务端同机，数字只用于相对比较。
+v1.0-A 起使用成熟工具，不再维护自研压测客户端：
 
-128 客户端，每组 25.6 万请求（2000 请求/客户端），3 次取中位数：
+- SET / GET：`redis-benchmark`
+- MIXED：`memtier_benchmark`
+- CPU / RSS：`pidstat`
 
-| 配置 | SET | GET | MIXED |
-|---|---|---|---|
-| 单 IO 线程 | 55.6k | 54.0k | 57.4k |
-| 4 worker | 92.0k | 107.2k | 80.3k |
-| 4 worker + AOF everysec | 76.7k | 109.7k | 69.3k |
-
-结论：
-
-- 4 worker 对 SET 提升约 1.65 倍，对 GET 提升约 2 倍
-- AOF 只影响写路径：SET 下降约 17%，GET 基本不变
-- everysec 的代价是崩溃最多丢约 1 秒数据
-- 压测客户端本身也会成为瓶颈，数字用于横向比较
+数据与原始输出见 `doc/benchmarks/`。
 
 ---
 
@@ -330,6 +320,8 @@ nc 127.0.0.1 6380
 ## 文档
 
 - 架构：[doc/architecture.md](doc/architecture.md)
+- 架构决策：[doc/decisions/](doc/decisions/)
+- 性能数据：[doc/benchmarks/](doc/benchmarks/)
 - 部署与回滚：[doc/runbooks/](doc/runbooks/)
 - 发布记录：[doc/releases/](doc/releases/)
 - 故障复盘：[doc/incidents/](doc/incidents/)
@@ -352,11 +344,12 @@ projects/kv_store/
   command/         命令分发
   aof/             AOF 追加、刷盘、回放
   server/          KvServer
-  bench/           bench_kv 压测客户端
 blog/              MkDocs 内容站配置、演示内容
 tests/             单元/集成测试
 doc/               项目工程文档
   architecture.md  架构与关键决策
+  decisions/       架构决策记录
+  benchmarks/      性能数据
   releases/        发布记录
   incidents/       故障复盘
   runbooks/        部署与回滚
@@ -385,7 +378,7 @@ KV Store：
 - 没有 key 过期、淘汰策略、事务和集群
 - AOF everysec 在崩溃时最多丢约 1 秒数据
 - 没有认证和限流
-- 压测客户端与服务端同机，数字只做相对比较
+- 压测工具与服务端同机，数字只做相对比较
 
 其他：
 

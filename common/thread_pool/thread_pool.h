@@ -1,10 +1,13 @@
 #pragma once
 
+#include <pthread.h>
+
 #include <condition_variable>
 #include <cstddef>
 #include <functional>
 #include <mutex>
 #include <queue>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -91,7 +94,12 @@ class ThreadPool {
 public:
     explicit ThreadPool(size_t c) : capacity_(c) {
         for (size_t i = 0; i < capacity_; ++i) {
-            workers_.emplace_back([this] { work(); });
+            workers_.emplace_back([this, i] {
+                // 只命名线程，便于压测时区分 IO/worker。
+                const std::string name = "worker-" + std::to_string(i);
+                pthread_setname_np(pthread_self(), name.c_str());
+                work();
+            });
         }
     }
 

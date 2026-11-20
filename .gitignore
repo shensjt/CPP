@@ -26,3 +26,7 @@ projects/web_server/www/
 logs/
 *.log
 data/
+
+# 压测原始输出需要入库
+!doc/benchmarks/raw/**/*.log
+doc/benchmarks/raw/**/*.aof

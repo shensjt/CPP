@@ -1,0 +1,14 @@
+=== run 1/1 ===
+Running 30s test @ http://127.0.0.1:18080/
+  4 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     7.80ms   11.32ms 279.36ms   94.01%
+    Req/Sec     3.91k     0.99k    6.19k    68.16%
+  Latency Distribution
+     50%    5.14ms
+     75%    8.19ms
+     90%   13.87ms
+     99%   54.22ms
+  466181 requests in 30.06s, 11.93GB read
+Requests/sec:  15508.30
+Transfer/sec:    406.50MB

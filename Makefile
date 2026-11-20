@@ -1,7 +1,7 @@
 PYTHON ?= python3
 MKDOCS := $(PYTHON) -m mkdocs
 
-.PHONY: deps blog blog-local serve server kv test verify run run-local run-kv bench-kv publish
+.PHONY: deps blog blog-local serve server kv test verify run run-local run-kv publish
 
 deps:
 	$(PYTHON) -m pip install -r blog/requirements.txt
@@ -22,10 +22,6 @@ server:
 kv:
 	cmake -S . -B build/server -DCMAKE_BUILD_TYPE=Release
 	cmake --build build/server --target kv_store -j
-
-bench-kv:
-	cmake -S . -B build/server -DCMAKE_BUILD_TYPE=Release
-	cmake --build build/server --target bench_kv -j
 
 test:
 	cmake -S tests -B build/tests

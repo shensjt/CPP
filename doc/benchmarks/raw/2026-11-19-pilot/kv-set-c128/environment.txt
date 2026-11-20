@@ -1,0 +1,16 @@
+Thu Nov 19 07:53:56 UTC 2026
+Linux shen 6.18.33.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun 18 21:54:43 UTC 2026 x86_64 GNU/Linux
+16
+CPU(s):                                  16
+On-line CPU(s) list:                     0-15
+Model name:                              AMD Ryzen 7 7840H w/ Radeon 780M Graphics
+Thread(s) per core:                      2
+Core(s) per socket:                      8
+Socket(s):                               1
+NUMA node0 CPU(s):                       0-15
+g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+commit=8a9eecf55d79d7b984144f3beeb15864ae17dcc8
+kv=build/server/kv_store host=127.0.0.1 port=16380 threads=4 mode=set aof=off
+clients=128 requests=200000 keys=10000 value_size=64 runs=1
+redis-benchmark 8.0.5
+memtier_benchmark v=2.5.1 sha=00000000:0 bits=64 libevent=2.1.12-stable openssl=OpenSSL 3.5.5 27 Jan 2026 prometheus=yes

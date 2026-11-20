@@ -1,0 +1,4 @@
+preload: redis-benchmark SET
+WARNING: Could not fetch server CONFIG
+ SET: rps=0.0 (overall: -nan) avg_msec=-nan (overall: -nan)                                                           SET: 46082.95 requests per second, p50=0.327 msec
+
