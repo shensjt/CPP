@@ -2,3 +2,11 @@ INHERIT: mkdocs.yml
 docs_dir: demo
 site_dir: ../build/demo-www
 site_name: SJTWebServer Demo
+
+# mkdocs.yml 里的 nav 指向 content/，demo 内容需要自己的导航
+nav:
+  - 首页: index.md
+  - 技术深潜:
+      - deepdive/index.md
+      - deepdive/example.md
+  - 关于: about.md
