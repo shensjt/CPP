@@ -11,7 +11,9 @@ theme:
   name: material
   language: zh
   # Material 默认从 Google Fonts 加载 Roboto，国内可能不可达
+  # 字体栈改由 overrides/stylesheets/extra.css 统一定义（系统字体）
   font: false
+  custom_dir: overrides
   features:
     - navigation.tabs
     - navigation.sections
@@ -21,15 +23,19 @@ theme:
     - search.suggest
     - search.highlight
     - content.code.copy
+  # 方案 A「终端深潜」：深色（slate）为默认，浅色可切换；配色变量见 extra.css
   palette:
-    - scheme: default
-      toggle:
-        icon: material/brightness-7
-        name: 深色模式
     - scheme: slate
       toggle:
+        icon: material/brightness-7
+        name: 切换到浅色模式
+    - scheme: default
+      toggle:
         icon: material/brightness-4
-        name: 浅色模式
+        name: 切换到深色模式
+
+extra_css:
+  - stylesheets/extra.css
 
 markdown_extensions:
   - admonition
@@ -51,5 +57,35 @@ validation:
     absolute_links: warn
     unrecognized_links: warn
     anchors: warn
+
+# 目录用英文 slug（URL 干净），导航标题用中文（展示友好）
+nav:
+  - 首页: index.md
+  - 系统设计:
+      - design/index.md
+      - design/2026-11-20-concurrency-model.md
+      - design/2026-11-20-http-parser-buffer.md
+      - design/2026-11-20-kv-store.md
+  - 流程与交付:
+      - delivery/index.md
+      - delivery/2026-11-20-ci-cd-pipeline.md
+      - delivery/2026-11-20-deploy-rollback-runbook.md
+      - delivery/2026-11-20-observability.md
+  - 数据与验证:
+      - data/index.md
+      - data/2026-11-20-benchmark-methodology.md
+      - data/2026-11-20-thread-scaling.md
+      - data/2026-11-20-baseline-to-decision.md
+  - 问题与复盘:
+      - incidents/index.md
+      - incidents/2026-11-18-connection-ownership-race.md
+      - incidents/2026-11-18-fd-reuse-uaf.md
+  - 演进与取舍:
+      - evolution/index.md
+      - evolution/2026-11-20-v0.1-to-v0.5.md
+      - evolution/2026-11-20-v1.0-in-progress.md
+  - 博客:
+      - blog/index.md
+      - blog/2026-11-20-three-lessons.md
 
 strict: true
