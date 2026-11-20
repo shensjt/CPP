@@ -84,8 +84,5 @@ nav:
       - evolution/index.md
       - evolution/2026-11-20-v0.1-to-v0.5.md
       - evolution/2026-11-20-v1.0-in-progress.md
-  - 博客:
-      - blog/index.md
-      - blog/2026-11-20-three-lessons.md
 
 strict: true
