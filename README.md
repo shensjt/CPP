@@ -36,9 +36,12 @@
 
 ```text
 浏览器
-  │ HTTP/1.1 39.106.115.254:8080
+  │ HTTPS 443
   ▼
-web_server 容器（0.0.0.0:8080）
+Caddy（宿主机）
+  │ HTTP 127.0.0.1:8080
+  ▼
+web_server 容器（127.0.0.1:8080）
   ▼
 TcpServer
   ├── Epoll             事件通知
@@ -52,7 +55,7 @@ TcpServer
 - IO 线程只做 `epoll_wait` 和分发
 - worker 负责连接的读写、HTTP 解析和静态文件处理
 - `EPOLLONESHOT` + 连接级锁，保证事件投递和所有权交接
-- 当前没有域名和 TLS，直接 HTTP 8080；Caddy 未安装
+- Caddy 在宿主机终止 TLS；容器只发布到 `127.0.0.1:8080`
 
 ## 版本
 
@@ -61,6 +64,7 @@ TcpServer
 - [v0.3.0](doc/releases/v0.3.0.md)：CI/CD 与容器化
 - [v0.4.0](doc/releases/v0.4.0.md)：HTTP 正确性、缓存协商、可观测性、优雅停机
 - [v0.5.0](doc/releases/v0.5.0.md)：MkDocs 内容站与发布流程
+- `v1.0.0-alpha.2`：v1.0-A 基线、B2 共享 body、Caddy HTTPS 与 ICP 备案（当前线上）
 
 仓库只保存源码、站点配置、测试、部署配置和演示文章；`build/www/` 是构建产物，不入库。
 
@@ -191,7 +195,7 @@ cmake --build build/tests -j
 ctest --test-dir build/tests --output-on-failure
 ```
 
-当前 6 个测试可执行文件、206 个用例：
+当前 6 个测试可执行文件、207 个用例：
 
 - 线程池 / 阻塞队列
 - 内存池
@@ -356,6 +360,7 @@ doc/               项目工程文档
 Dockerfile         多阶段镜像构建
 .dockerignore      构建上下文排除
 compose.yaml       本地容器编排
+deploy/Caddyfile   生产 Caddy 反代配置
 build/             构建产物（不入库）
   server/          可执行文件
   www/             生成的静态站点
@@ -367,7 +372,6 @@ Web Server：
 
 - 没有实现 sendfile，大文件仍走用户态缓冲
 - 内存池尚未接入 Web 服务器，目前作为独立组件
-- 当前没有域名和 TLS，直接 HTTP 8080
 - 读缓冲 2MB、写缓冲 8MB，超限直接关闭慢连接；没有完整的暂停/恢复背压
 - 没有限流、连接数上限和认证
 
@@ -383,14 +387,16 @@ KV Store：
 其他：
 
 - 博客仓库只带演示内容，真实内容在本地 `blog/content/` 维护
+- Caddy 在宿主机，不在容器内；没有 CDN / WAF / HSTS
 
 ## 部署
 
-当前生产使用 Docker Compose：
+当前生产使用 Docker Compose + Caddy：
 
 - 运行目录：`/opt/sjtweb-runtime`
 - 内容目录：`/opt/sjtweb-runtime/www`
-- 入口：`http://39.106.115.254:8080`
+- 入口：`https://shenjuntao.com/`
+- Caddy：宿主机 systemd，配置见 `deploy/Caddyfile`
 - 镜像：阿里云 ACR，tag 为 `sha-<commit>`
 - CD：合并 `main` 后自动构建、推送、部署、smoke
 - 内容发布：本地 `make publish`，rsync 到内容目录，不重启容器

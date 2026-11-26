@@ -2,8 +2,8 @@
 
 > 环境：本地 WSL / Linux
 > 目标：`/opt/sjtweb-runtime/www`
-> 入口：`http://39.106.115.254:8080`
-> 更新：2026-11-18
+> 入口：`https://shenjuntao.com/`
+> 更新：2026-11-26
 
 ## 前提
 
@@ -76,7 +76,9 @@ ssh deploy@39.106.115.254 '
   curl -I http://127.0.0.1:8080/sitemap.xml
 '
 
-curl --noproxy '*' -I http://39.106.115.254:8080/
+curl --noproxy '*' -I https://shenjuntao.com/
+
+内容发布只写 `/opt/sjtweb-runtime/www`，不重启容器，也不重载 Caddy。
 ```
 
 发布前后确认容器没有重启：

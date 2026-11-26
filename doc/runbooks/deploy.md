@@ -1,8 +1,8 @@
 # 部署 Runbook
 
 > 环境：阿里云 ECS（Ubuntu 22.04）
-> 入口：`http://39.106.115.254:8080`（无域名、无 TLS）
-> 更新：2026-11-18
+> 入口：`https://shenjuntao.com/`
+> 更新：2026-11-26
 
 ## 服务器布局
 
@@ -14,8 +14,36 @@
   www/                       发布目录，容器只读挂载
   www.prev/                  上一次内容发布快照
 
-Caddy：未安装
+/etc/caddy/Caddyfile         HTTPS 反代配置
+/var/lib/caddy/              Caddy 证书和状态
 ```
+
+Caddy 由宿主机 systemd 管理，不在容器内；仓库配置见 `deploy/Caddyfile`。
+
+## Caddy / HTTPS
+
+- 域名：`shenjuntao.com`，`www` 301 到根域名；
+- Caddy 监听 80/443，自动申请 Let's Encrypt 证书；
+- 反代目标：`127.0.0.1:8080`；
+- 容器宿主机端口只发布到 `127.0.0.1:8080`。
+
+常用命令：
+
+```bash
+sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl restart caddy
+sudo systemctl status caddy --no-pager
+sudo journalctl -u caddy -n 100 --no-pager
+```
+
+证书失败时先确认：
+
+```bash
+getent ahostsv4 shenjuntao.com
+getent ahostsv4 www.shenjuntao.com
+```
+
+以及安全组 80/443 是否放行。
 
 旧 systemd unit 已停用；`/opt/sjtwebserver` 旧目录如仍存在，只是历史残留，可手动清理。
 
@@ -108,14 +136,23 @@ curl -s http://127.0.0.1:8080/healthz
 curl -I http://127.0.0.1:8080/
 curl -I http://127.0.0.1:8080/sitemap.xml
 
-# 外部
+# 外部 HTTPS
+curl --noproxy '*' -I https://shenjuntao.com/
+curl --noproxy '*' -I https://www.shenjuntao.com/
+curl --noproxy '*' -I http://shenjuntao.com/
+
+# 公网 8080 应不可达
 curl --noproxy '*' -I http://39.106.115.254:8080/
 ```
 
 期望：
 
 - `.env` 里的 `IMAGE_TAG` 与 `docker compose ps` 的 image tag 一致；
-- `/healthz` 的 `commit` 与 `IMAGE_TAG` 去掉 `sha-` 后一致。
+- `/healthz` 的 `commit` 与 `IMAGE_TAG` 去掉 `sha-` 后一致；
+- `https://shenjuntao.com/` 返回 200；
+- `https://www.shenjuntao.com/` 返回 301 到根域名；
+- `http://shenjuntao.com/` 返回 308 到 HTTPS；
+- 公网 `8080` timeout 或 refused。
 
 ## 停机
 
@@ -189,13 +226,40 @@ docker inspect "$(docker compose ps -q web)" --format '{{json .Mounts}}'
 
 期望 `Type` 是 `bind`、`Source` 是 `/opt/sjtweb-runtime/www`、`RW` 是 `false`。如果配成了 named volume，Docker 会把镜像里的 demo 复制进去，宿主机 rsync 的文件不会被看到。
 
-### 8080 被占用
+### Caddy 证书失败
 
-检查 systemd 是否又被启动：
+现象：`https://shenjuntao.com/` TLS 握手报错，浏览器证书无效。
 
 ```bash
+sudo journalctl -u caddy -n 200 --no-pager | grep -Ei 'error|fail|challenge|certificate|acme'
+```
+
+检查：
+
+- DNS 的 `@` 和 `www` 是否都指向 `39.106.115.254`；
+- 安全组 80/443 是否放行；
+- Caddy 是否正在监听 80/443：
+
+```bash
+ss -ltnp | grep -E ':(80|443)\b'
+```
+
+### 8080 被占用
+
+检查 Caddy、容器和旧 systemd 服务：
+
+```bash
+systemctl is-active caddy
 systemctl is-active sjtwebserver
-ss -ltnp | grep ':8080'
+ss -ltnp | grep -E ':(80|443|8080)\b'
+```
+
+期望：
+
+```text
+Caddy: 80/443
+容器: 127.0.0.1:8080
+systemd: inactive
 ```
 
 容器和 systemd 不能同时占用 8080。
