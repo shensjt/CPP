@@ -46,11 +46,47 @@ curl -fsS http://127.0.0.1:8080/
 ```bash
 cd /opt/sjtweb-runtime
 docker compose ps
-ss -ltnp | grep ':8080'
-curl -fsS http://127.0.0.1:8080/
+ss -ltnp | grep -E ':(80|443|8080)\b'
+systemctl is-active caddy
+curl -fsS http://127.0.0.1:8080/healthz
+curl -fsS https://shenjuntao.com/healthz
+curl -I https://www.shenjuntao.com/
 ```
 
-旧 systemd unit 已停用，旧 `deploy/` 脚本已删除；不再提供 systemd 回滚路径。
+旧 systemd unit 已停用，旧 systemd 部署脚本已删除；不再提供 systemd 回滚路径。
+
+## Caddy 配置回滚
+
+Caddyfile 由仓库 `deploy/Caddyfile` 管理。修改前先备份：
+
+```bash
+sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak
+```
+
+恢复旧配置：
+
+```bash
+sudo cp /etc/caddy/Caddyfile.bak /etc/caddy/Caddyfile
+sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl restart caddy
+```
+
+## 临时回退到 IP:8080
+
+只在 Caddy 不可用时使用，恢复后要改回：
+
+```bash
+# 1. 安全组临时放行 8080
+# 2. compose 端口改回 0.0.0.0:8080:8080
+cd /opt/sjtweb-runtime
+sed -i 's/"127.0.0.1:8080:8080"/"0.0.0.0:8080:8080"/' compose.yaml
+docker compose up -d
+
+# 3. 停 Caddy
+sudo systemctl stop caddy
+```
+
+恢复后把端口改回 `127.0.0.1:8080:8080`，重启容器，再关闭安全组 8080。
 
 ## 记录
 

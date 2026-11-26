@@ -1,8 +1,8 @@
 site_name: SJT
 site_author: SJT
-site_url: http://39.106.115.254:8080/
+site_url: https://shenjuntao.com/
 repo_url: https://github.com/shensjt/CPP
-copyright: Copyright &copy; 2026 SJT
+copyright: Copyright &copy; 2026 SJT | <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">渝ICP备2026030614号-1</a>
 use_directory_urls: true
 docs_dir: content
 site_dir: ../build/www
