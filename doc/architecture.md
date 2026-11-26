@@ -1,7 +1,7 @@
 # 系统架构
 
-> 更新：2026-11-18
-> 适用范围：`main` 分支与当前线上容器部署
+> 更新：2026-11-26
+> 适用范围：`main` 分支与当前线上部署
 
 ## 1. 系统边界与部署
 
@@ -14,9 +14,12 @@
 
 ```text
 浏览器
-  │ HTTP/1.1 :8080
+  │ HTTPS 443
   ▼
-web_server 容器（0.0.0.0:8080）
+Caddy（宿主机，Let's Encrypt）
+  │ HTTP 127.0.0.1:8080
+  ▼
+web_server 容器（127.0.0.1:8080）
   └── /app/www
         ▲ 只读挂载
         │
@@ -24,8 +27,9 @@ web_server 容器（0.0.0.0:8080）
 ```
 
 - 容器由 Docker Compose 管理，运行目录 `/opt/sjtweb-runtime`；
-- 旧 systemd unit 已 stop / disable；旧 `deploy/` 脚本已删除；
-- 当前没有域名和 TLS，Caddy 未安装；
+- Caddy 由宿主机 systemd 管理，入口 `https://shenjuntao.com/`；
+- `www.shenjuntao.com` 301 到根域名；
+- 旧 systemd 部署脚本已删除，`deploy/` 只保留 `Caddyfile`；
 - 镜像从阿里云 ACR 拉取，tag 为 `sha-<commit>`。
 
 ## 2. 代码分层
@@ -44,8 +48,9 @@ web_server 容器（0.0.0.0:8080）
 | `projects/kv_store/command/` | 命令分发与参数校验 |
 | `projects/kv_store/aof/` | AOF 追加、fsync、回放、尾部修复 |
 | `projects/kv_store/server/` | `KvServer` 接入网络层 |
-| `tests/` | 6 个测试可执行文件、206 个用例 |
+| `tests/` | 6 个测试可执行文件、207 个用例 |
 | `blog/` | MkDocs 内容站配置、演示内容和发布配置 |
+| `deploy/Caddyfile` | 生产 Caddy 反代配置 |
 
 ## 3. 线程与并发模型
 
@@ -142,10 +147,10 @@ HTML 构建产物统一放在 `build/`，不写源码树。`make blog` 生成 `b
 
 - 多阶段 Dockerfile：builder 编译并生成 `www`，runtime 只保留二进制和 `www`；
 - 非 root 用户 `app`（UID 10001）；
-- 容器内监听 `0.0.0.0:8080`；
+- 容器内监听 `0.0.0.0:8080`，宿主机只发布到 `127.0.0.1:8080`；
 - 内容通过 `/opt/sjtweb-runtime/www` 只读挂载，代码发布和内容发布解耦；
 - 内容由本地 MkDocs 构建，`make publish` 通过 rsync 发布，不重启容器；
-- 当前没有 Caddy / 域名 / TLS，宿主机直接发布 `8080`。
+- Caddy 在宿主机终止 TLS，反代到 `127.0.0.1:8080`，配置见 `deploy/Caddyfile`。
 
 ### 5.5 ACR 与部署
 
@@ -185,7 +190,8 @@ KV Store：
 
 部署：
 
-- 没有域名和 TLS，直接 HTTP 8080；
+- 入口 `https://shenjuntao.com/`，`www` 301 到根域名；
+- Caddy 在宿主机，不在容器内；没有 CDN / WAF / HSTS；
 - 有 `/healthz` 和访问日志，但没有 metrics / 告警 / 链路追踪；
 - CD smoke 检查 `/`、`/sitemap.xml` 和 `/healthz` 的 commit；
 - 内容发布是本地脚本：构建、快照 `www.prev`、rsync、smoke、失败回滚；
