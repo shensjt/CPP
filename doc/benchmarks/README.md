@@ -37,6 +37,8 @@ benchmarks/
 | 2026-11-19 | diagnosis | 诊断 | `8a9eecf` | 每请求 readlink ~5、newfstatat ~4、epoll_ctl ~1 |
 | 2026-11-20 | baseline | **正式** | `ee1f418` | IO 15.6–28.3%；4→8 worker QPS +15%，P99 恶化；先 request-path |
 | 2026-11-20 | B2 shared body | 已评估，**采纳** | B2 分支 | 1MB QPS +15.4%，P99 -56% |
+| 2026-11-26 | production HTTPS | C 初测 | `3aef82e` | 小响应约 1.7k–2.1k req/s；Caddy CPU 43%–67%；首页受跨境 WAN 限制 |
 
 A 阶段基线已完成，见 [2026-11-20-baseline.md](2026-11-20-baseline.md)。
 B2 已采纳，见 [2026-11-20-b2-copy.md](2026-11-20-b2-copy.md)。
+C 阶段生产基线见 [2026-11-26-production-baseline.md](2026-11-26-production-baseline.md)。
