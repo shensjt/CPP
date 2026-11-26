@@ -211,6 +211,8 @@ v1.0-A 基线已完成：见 [2026-11-20-baseline.md](benchmarks/2026-11-20-base
 
 决策：[ADR-0003](decisions/0003-request-path-before-reactor.md) Accepted，先做 request-path 优化；主从 Reactor 作为 B4 条件项，暂缓到 v1.1。
 
+C 阶段生产 HTTPS 初测：`/healthz` 小响应约 1.7k–2.1k req/s，Caddy CPU 43%–67%；客户端为跨境 WAN，首页 34KB 受带宽限制。见 [2026-11-26-production-baseline.md](benchmarks/2026-11-26-production-baseline.md)。
+
 ## 8. 入口
 
 - 项目说明：[README.md](../README.md)

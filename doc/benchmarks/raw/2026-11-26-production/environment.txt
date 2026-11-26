@@ -1,0 +1,12 @@
+date=2026-11-26
+site=https://shenjuntao.com/
+server=Aliyun ECS Ubuntu 22.04, 2 vCPU, 1.7 GiB
+client=WSL2, cross-border WAN
+caddy=2.11.9
+image=sha-3aef82ee12ed1fb5e0738ed5581a956789c4a7fc
+container_workers=4
+tls=TLSv1.3 TLS_AES_128_GCM_SHA256
+protocol=h2
+tool=h2load nghttp2/1.68.0
+command=h2load -n 3000 -c 32 -m 10 https://shenjuntao.com/healthz
+runs=3

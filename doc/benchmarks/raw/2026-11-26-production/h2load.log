@@ -1,0 +1,11 @@
+=== run 1 ===
+starting benchmark...
+spawning thread #0: 32 total client(s). 3000 total requests
+TLS Protocol: TLSv1.3
+Cipher: TLS_AES_128_GCM_SHA256
+Server Temp Key: X25519 253 bits
+Application protocol: h2
+progress: 10% done
+progress: 20% done
+progress: 30% done
+progress: 40% done
